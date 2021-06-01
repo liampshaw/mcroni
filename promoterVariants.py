@@ -8,6 +8,7 @@ import os
 from Bio import SeqIO
 import subprocess
 import re
+import argparse
 import pandas as pd
 import numpy as np
 
@@ -16,13 +17,13 @@ import seqFunctions as sf
 
 
 def get_options():
-    parser = argparse.ArgumentParser(description='Analyse the local genomic context of mcr-1, including variants in the upstream promoter region.',
+    parser = argparse.ArgumentParser(description='Analyse the local genomic context of mcr-1 including variants in the upstream promoter region.',
                                      prog='promoterVariants')
-    parser.add_argument('f', help='Fasta file')
-    parser.add_argument('o', help='Output file')
-    parser.add_argument('l', help='List of fasta files')
+    input_group = parser.add_mutually_exclusive_group(required=True) # mutually exclusive group
+    input_group.add_argument('--fasta', help='Fasta file') # either f or l, but not both
+    input_group.add_argument('--filelist', help='Alternatively: a list of fasta files')
+    parser.add_argument('--output', help='Output file', required=True)
     return parser.parse_args()
-
 
 
 def cut_upstream_region(fasta_file, threshold=76):
@@ -168,10 +169,11 @@ output_header = 'file\tsample\tcontig\tmcr1.start\tmcr1.strand\tmcr1.variant\tmc
 
 if __name__ == "__main__":
     args = get_options()
-    list_of_files = args.l
+    if args.filelist!='':
+        list_of_files = args.filelist
     output_file_name = args.o
     with open(list_of_files, 'r') as f:
-        with open(output_file_name, 'w' as output_file):
+        with open(output_file_name, 'w') as output_file:
             output_file.write(output_header)
             for line in f.readlines():
                 fasta_file = line.strip()
