@@ -163,7 +163,7 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
 # Header for output file
 output_header = 'file\tsample\tcontig\tmcr1.start\tmcr1.strand\tmcr1.variant\tmcr1.upstream.seq\tplasmids.contig\tplasmids.elsewhere\tisapl1.upstream.length\tisapl1.upstream.orientation\tisapl1.downstream.length\tisapl1.downstream.length\n'
 
-def main:
+def main():
     args = get_options()
     print(args)
     fastas = []
