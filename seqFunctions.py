@@ -63,7 +63,7 @@ def classify_variant(seq, variants_db='data/mcr1-variants.fa'):
             Fasta filename of known variant database.
                 mcr1-variants.fa (default)
                     mcr-1 gene. mcr-1.1 to mcr-1.13 included.
-                promoter-region-variants.fa
+                promoter-region-variants.fa (coming soon)
                     75 bp region upstream of mcr-1 gene.
                     Consensus sequence + 8 variants as classified by
                     Lois Ogunlana, University of Oxford.
