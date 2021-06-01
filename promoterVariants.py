@@ -15,6 +15,80 @@ import seqFunctions as sf
 
 
 
+def get_options():
+    parser = argparse.ArgumentParser(description='Analyse the local genomic context of mcr-1, including variants in the upstream promoter region.',
+                                     prog='promoterVariants')
+    parser.add_argument('f', help='Fasta file')
+    parser.add_argument('o', help='Output file')
+    parser.add_argument('l', help='List of fasta files')
+    return parser.parse_args()
+
+
+
+def cut_upstream_region(fasta_file, threshold=76):
+    '''Returns the upstream region of mcr-1 in a genome (assumes just one hit).'''
+    print('Reading in genome from file '+fasta_file+'...')
+    contigs = sf.read_fasta(fasta_file)
+    print('Making blast database...')
+    subprocess.check_call(['makeblastdb', '-in', fasta_file, '-dbtype', 'nucl'],\
+        stderr=subprocess.DEVNULL,\
+        stdout=open(os.devnull, 'w'))
+    print('Searching for mcr-1...')
+    blast_process = subprocess.Popen(['blastn', '-db', fasta_file, \
+                            '-query', 'mcr-1.fasta', \
+                            '-outfmt', '6'],
+                            stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    blast_out, _ = blast_process.communicate() # Read the output from stdout
+    blast_output = blast_out.decode().split('\t') # Decode
+    print(blast_output)
+    print('Removing temporary blast databases...')
+    os.remove(fasta_file+'.nin')
+    os.remove(fasta_file+'.nhr')
+    os.remove(fasta_file+'.nsq')
+
+    # Looking through to cut out upstream region
+    if blast_output == ['']:
+        print('No blast hit for mcr-1!')
+        return
+    mcr_1_contig = blast_output[1]
+    mcr_1_start = int(blast_output[8])
+    mcr_1_end = int(blast_output[9])
+    if int(blast_output[3])==1626:
+        if mcr_1_start < mcr_1_end:
+            mcr_1_strand = '+' # On positive strand
+        else:
+            mcr_1_strand = '-' # On negative strand
+        print('mcr-1 start position is:', mcr_1_start, 'on the', mcr_1_strand, 'strand', 'of contig', mcr_1_contig)
+    else:
+        print('Does not contain a full-length mcr-1!')
+        return
+
+    # Get mcr-1 variant
+    contig_seq = str(contigs[mcr_1_contig].seq)
+    if mcr_1_strand=='+':
+        mcr_1_seq = contig_seq[mcr_1_start-1:mcr_1_end]
+    if mcr_1_strand=='-':
+        mcr_1_seq = reverse_complement(contig_seq[mcr_1_end-1:mcr_1_start])
+    mcr_1_variant = sf.classify_variant(mcr_1_seq)
+
+    # Use this information to extract the 75bp upstream of mcr-1
+    if mcr_1_strand == '+':
+        cut_position = mcr_1_start-threshold
+        if cut_position < 0:
+            print('Contig is not long enough...')
+            return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, ''])
+        mcr_1_upstream = contig_seq[cut_position:mcr_1_start-1]
+
+
+    elif mcr_1_strand == '-':
+        cut_position = mcr_1_start+threshold
+        if cut_position > len(contig_seq):
+            print('Contig is not long enough...')
+            return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, ''])
+        mcr_1_upstream = reverse_complement(contig_seq[mcr_1_start:cut_position-1])
+    print(mcr_1_upstream)
+    return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream])
+
 def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     '''Analyses the upstream and downstream presence of ISApl1 using minimap2.
 
@@ -88,97 +162,34 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         return
 
 
+# Header for output file
+output_header = 'file\tsample\tcontig\tmcr1.start\tmcr1.strand\tmcr1.variant\tmcr1.upstream.seq\tplasmids.contig\tplasmids.elsewhere\tisapl1.upstream.length\tisapl1.upstream.orientation\tisapl1.downstream.length\tisapl1.downstream.length\n'
 
-def cut_upstream_region(fasta_file, threshold=76):
-    '''Returns the upstream region of mcr-1 in a genome (assumes just one hit).'''
-    print('Reading in genome from file '+fasta_file+'...')
-    contigs = sf.read_fasta(fasta_file)
-    print('Making blast database...')
-    subprocess.check_call(['makeblastdb', '-in', fasta_file, '-dbtype', 'nucl'],\
-        stderr=subprocess.DEVNULL,\
-        stdout=open(os.devnull, 'w'))
-    print('Searching for mcr-1...')
-    blast_process = subprocess.Popen(['blastn', '-db', fasta_file, \
-                            '-query', 'mcr-1.fasta', \
-                            '-outfmt', '6'],
-                            stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    blast_out, _ = blast_process.communicate() # Read the output from stdout
-    blast_output = blast_out.decode().split('\t') # Decode
-    print(blast_output)
-    print('Removing temporary blast databases...')
-    os.remove(fasta_file+'.nin')
-    os.remove(fasta_file+'.nhr')
-    os.remove(fasta_file+'.nsq')
-
-    # Looking through to cut out upstream region
-    if blast_output == ['']:
-        print('No blast hit for mcr-1!')
-        return
-    mcr_1_contig = blast_output[1]
-    mcr_1_start = int(blast_output[8])
-    mcr_1_end = int(blast_output[9])
-    if int(blast_output[3])==1626:
-        if mcr_1_start < mcr_1_end:
-            mcr_1_strand = '+' # On positive strand
-        else:
-            mcr_1_strand = '-' # On negative strand
-        print('mcr-1 start position is:', mcr_1_start, 'on the', mcr_1_strand, 'strand', 'of contig', mcr_1_contig)
-    else:
-        print('Does not contain a full-length mcr-1!')
-        return
-
-    # Get mcr-1 variant
-    contig_seq = str(contigs[mcr_1_contig].seq)
-    if mcr_1_strand=='+':
-        mcr_1_seq = contig_seq[mcr_1_start-1:mcr_1_end]
-    if mcr_1_strand=='-':
-        mcr_1_seq = reverse_complement(contig_seq[mcr_1_end-1:mcr_1_start])
-    mcr_1_variant = sf.classify_variant(mcr_1_seq)
-
-    # Use this information to extract the 75bp upstream of mcr-1
-    if mcr_1_strand == '+':
-        cut_position = mcr_1_start-threshold
-        if cut_position < 0:
-            print('Contig is not long enough...')
-            return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, ''])
-        mcr_1_upstream = contig_seq[cut_position:mcr_1_start-1]
-
-
-    elif mcr_1_strand == '-':
-        cut_position = mcr_1_start+threshold
-        if cut_position > len(contig_seq):
-            print('Contig is not long enough...')
-            return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, ''])
-        mcr_1_upstream = reverse_complement(contig_seq[mcr_1_start:cut_position-1])
-    print(mcr_1_upstream)
-    return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream])
 
 if __name__ == "__main__":
-    # First argument is input filename (fasta)
-    # Second argument is output filename ()
-    with args[1]
+    args = get_options()
+    list_of_files = args.l
+    output_file_name = args.o
+    with open(list_of_files, 'r') as f:
+        with open(output_file_name, 'w' as output_file):
+            output_file.write(output_header)
+            for line in f.readlines():
+                fasta_file = line.strip()
+                fasta_name = re.sub('\\..*', '', re.sub('.*\\/', '', fasta_file))
+                output = cut_upstream_region(fasta_file)
+                if output!=None:
+                    mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream = output[0], output[1], output[2], output[3], output[4]
+                    # Write to file
+                    output_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s' % (fasta_file, fasta_name, mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream))
+                    # Get plasmid replicons too
+                    plasmids = sf.plasmid_replicons(fasta_file, mcr_1_contig)
+                    # Write to file
+                    output_file.write('\t%s\t%s' % (plasmids[0], plasmids[1]))
+                    # Get ISApl1 status
+                    ISApl1_status = classify_ISApl1_presence(sf.read_fasta(fasta_file)[mcr_1_contig], mcr_1_start, mcr_1_strand)
+                    # write to file
+                    output_file.write('\t%d\t%s\t%d\t%s\n' % (ISApl1_status['upstream'][0], ISApl1_status['upstream'][1], \
+                            ISApl1_status['downstream'][0], ISApl1_status['downstream'][1]))
 
-with open(sys.argv[1], 'r') as f:
-    with open(sys.argv[2], 'w') as output_file:
-        output_header = 'file\tsample\tcontig\tmcr1.start\tmcr1.strand\tmcr1.variant\tmcr1.upstream.seq\tplasmids.contig\tplasmids.elsewhere\tisapl1.upstream.length\tisapl1.upstream.orientation\tisapl1.downstream.length\tisapl1.downstream.length\n'
-        output_file.write(output_header)
-        for line in f.readlines():
-            fasta_file = line.strip()
-            fasta_name = re.sub('\\..*', '', re.sub('.*\\/', '', fasta_file))
-            output = cut_upstream_region(fasta_file)
-            if output!=None:
-                mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream = output[0], output[1], output[2], output[3], output[4]
-                # Write to file
-                output_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s' % (fasta_file, fasta_name, mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream))
-                # Get plasmid replicons too
-                plasmids = plasmid_replicons(fasta_file, mcr_1_contig)
-                # Write to file
-                output_file.write('\t%s\t%s' % (plasmids[0], plasmids[1]))
-                # Get ISApl1 status
-                ISApl1_status = classify_ISApl1_presence(sf.read_fasta(fasta_file)[mcr_1_contig], mcr_1_start, mcr_1_strand)
-                # write to file
-                output_file.write('\t%d\t%s\t%d\t%s\n' % (ISApl1_status['upstream'][0], ISApl1_status['upstream'][1], \
-                        ISApl1_status['downstream'][0], ISApl1_status['downstream'][1]))
-
-            else:
-                output_file.write('%s\t%s\t%s\n' % (fasta_file, fasta_name, '\t'.join(['NA' for i in range(0,11)]))) # 11 empty fields
+                else:
+                    output_file.write('%s\t%s\t%s\n' % (fasta_file, fasta_name, '\t'.join(['NA' for i in range(0,11)]))) # 11 empty fields
