@@ -13,9 +13,24 @@ import numpy as np
 
 import seqFunctions as sf
 
-def plasmid_replicons(fasta_file, contig, database='plasmidfinder'):
+def plasmid_replicons(fasta_file, contig_name, database='plasmidfinder'):
     '''Identifies and returns a list of plasmid replicons present on a contig (using abricate) and also within the wider genome.
 
+    Args:
+        fasta_file (str)
+            Filename of fasta
+        contig_name (str)
+            ID of contig within fasta
+        database (str)
+            Abricate database to use
+
+    Returns:
+        plasmid_output (list)
+            List of two comma-separated strings:
+                - plasmid replicons found on contig_name
+                - plasmid replicons found elsewhere in genome
+
+    N.B. Uses default thresholds of abricate (--minid 80, --mincov 80).
     '''
     print('Finding plasmid replicons using abricate...')
     abricate_command = ['abricate', '--db', database, fasta_file]
@@ -27,22 +42,33 @@ def plasmid_replicons(fasta_file, contig, database='plasmidfinder'):
     # Read back in
     data = pd.read_csv('tmp.out', sep='\t', header = 0)
     # Get all plasmid replicons elsewhere in genome
-    total_replicons = list(data[~data['SEQUENCE'].str.contains(contig, regex=False)]['GENE'])
+    total_replicons = list(data[~data['SEQUENCE'].str.contains(contig_name, regex=False)]['GENE'])
     # Get just those on the contig
-    contig_replicons = list(data[data['SEQUENCE'].str.contains(contig, regex=False)]['GENE'])
+    contig_replicons = list(data[data['SEQUENCE'].str.contains(contig_name, regex=False)]['GENE'])
     os.remove('tmp.out') # Remove abricate file
+    # Output list of two comma-separated strings
     plasmid_output = [','.join(contig_replicons), ','.join(total_replicons)]
-    return(plasmid_output) # str join
+    return(plasmid_output)
 
 def classify_mcr_1_variant(mcr_1_seq):
-    '''Classifies an mcr-1 variant (mcr-1.1 to mcr-1.13 included).'''
+    '''Classifies an mcr-1 variant (mcr-1.1 to mcr-1.13 included).
+
+    Args:
+        mcr_1_seq (str)
+            Sequence of mcr-1 gene (must be full-length).
+
+    Returns:
+        variant_name (str)
+            Name of variant. 'Other' if sequence non-identical to any known variant.
+    '''
     mcr_1_variants = SeqIO.to_dict(SeqIO.parse('mcr-1-variants.fasta', 'fasta'),
                                 lambda rec : rec.id)
     for variant in mcr_1_variants:
         if mcr_1_seq==str(mcr_1_variants[variant].seq):
             variant_name = re.sub('\\|.*', '', variant)
-            return(variant_name)
-    return('Other') # If sequence isn't a named variant
+        else:
+            variant_name = 'Other' # If sequence isn't a named variant
+    return(variant_name)
 
 def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     '''Analyses the upstream and downstream presence of ISApl1 using minimap2.
