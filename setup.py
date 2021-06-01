@@ -8,7 +8,7 @@ from setuptools import setup
 
 setup(
     name='mcroni',
-    version=flanker.__version__,
+    version=mcroni.__version__,
     description=' mcr-1 analysis ',
     url='https://github.com/liampshaw/mcroni',
     license='LICENSE',

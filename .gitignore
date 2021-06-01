@@ -1,2 +1,6 @@
 *.txt
 __pycache__/*
+build/*
+dist/*
+mcroni/__pycache/*
+mcroni.egg-info/*
