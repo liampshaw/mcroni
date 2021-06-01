@@ -36,7 +36,7 @@ def cut_upstream_region(fasta_file, threshold=76):
         stdout=open(os.devnull, 'w'))
     print('Searching for mcr-1...')
     blast_process = subprocess.Popen(['blastn', '-db', fasta_file, \
-                            '-query', 'mcr-1.fasta', \
+                            '-query', 'data/mcr1.fa', \
                             '-outfmt', '6'],
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     blast_out, _ = blast_process.communicate() # Read the output from stdout
@@ -69,7 +69,7 @@ def cut_upstream_region(fasta_file, threshold=76):
     if mcr_1_strand=='+':
         mcr_1_seq = contig_seq[mcr_1_start-1:mcr_1_end]
     if mcr_1_strand=='-':
-        mcr_1_seq = reverse_complement(contig_seq[mcr_1_end-1:mcr_1_start])
+        mcr_1_seq = sf.reverse_complement(contig_seq[mcr_1_end-1:mcr_1_start])
     mcr_1_variant = sf.classify_variant(mcr_1_seq)
 
     # Use this information to extract the 75bp upstream of mcr-1
@@ -86,7 +86,7 @@ def cut_upstream_region(fasta_file, threshold=76):
         if cut_position > len(contig_seq):
             print('Contig is not long enough...')
             return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, ''])
-        mcr_1_upstream = reverse_complement(contig_seq[mcr_1_start:cut_position-1])
+        mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:cut_position-1])
     print(mcr_1_upstream)
     return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream])
 
@@ -110,7 +110,7 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     if mcr_1_strand == '+':
         contig_str = str(contig.seq)
     if mcr_1_strand == '-':
-        contig_str = reverse_complement(str(contig.seq))
+        contig_str = sf.reverse_complement(str(contig.seq))
         mcr_1_start = len(contig_str)-mcr_1_start
     # Need two tests for ISApl1 - upstream of mcr-1? if yes, then how much? then, downstream of mcr-1, and if yes, then how much?
     upstream_ISApl1_window = 1260 # 1254 in KX528699
@@ -156,11 +156,8 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         if True in downstream_l:
             downstream_ind = downstream_l.index(True)
             ISApl1_dict['downstream'] = [ISApl1_lengths[downstream_ind], strand_map[strands[downstream_ind]]]
-        # return the dict
-        return(ISApl1_dict)
-    else:
-        print('Error! Minimap2 returned no output.')
-        return
+    # return the dict
+    return(ISApl1_dict)
 
 
 # Header for output file
@@ -169,29 +166,35 @@ output_header = 'file\tsample\tcontig\tmcr1.start\tmcr1.strand\tmcr1.variant\tmc
 
 if __name__ == "__main__":
     args = get_options()
-    if args.filelist!='':
-        list_of_files = args.filelist
-    output_file_name = args.o
-    with open(list_of_files, 'r') as f:
-        with open(output_file_name, 'w') as output_file:
-            output_file.write(output_header)
+    print(args)
+    fastas = []
+    if args.filelist is not None:
+        with open(args.filelist, 'r') as f:
             for line in f.readlines():
                 fasta_file = line.strip()
-                fasta_name = re.sub('\\..*', '', re.sub('.*\\/', '', fasta_file))
-                output = cut_upstream_region(fasta_file)
-                if output!=None:
-                    mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream = output[0], output[1], output[2], output[3], output[4]
-                    # Write to file
-                    output_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s' % (fasta_file, fasta_name, mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream))
-                    # Get plasmid replicons too
-                    plasmids = sf.plasmid_replicons(fasta_file, mcr_1_contig)
-                    # Write to file
-                    output_file.write('\t%s\t%s' % (plasmids[0], plasmids[1]))
-                    # Get ISApl1 status
-                    ISApl1_status = classify_ISApl1_presence(sf.read_fasta(fasta_file)[mcr_1_contig], mcr_1_start, mcr_1_strand)
-                    # write to file
-                    output_file.write('\t%d\t%s\t%d\t%s\n' % (ISApl1_status['upstream'][0], ISApl1_status['upstream'][1], \
-                            ISApl1_status['downstream'][0], ISApl1_status['downstream'][1]))
+                fastas.append(fasta_file)
+    else:
+        fastas.append(str(args.fasta))
 
-                else:
-                    output_file.write('%s\t%s\t%s\n' % (fasta_file, fasta_name, '\t'.join(['NA' for i in range(0,11)]))) # 11 empty fields
+
+    with open(args.output, 'w') as output_file:
+        output_file.write(output_header)
+        for fasta_file in fastas:
+            fasta_name = re.sub('\\..*', '', re.sub('.*\\/', '', fasta_file))
+            output = cut_upstream_region(fasta_file)
+            if output!=None:
+                mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream = output[0], output[1], output[2], output[3], output[4]
+                # Write to file
+                output_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s' % (fasta_file, fasta_name, mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream))
+                # Get plasmid replicons too
+                plasmids = sf.plasmid_replicons(fasta_file, mcr_1_contig)
+                # Write to file
+                output_file.write('\t%s\t%s' % (plasmids[0], plasmids[1]))
+                # Get ISApl1 status
+                ISApl1_status = classify_ISApl1_presence(sf.read_fasta(fasta_file)[mcr_1_contig], mcr_1_start, mcr_1_strand)
+                # write to file
+                output_file.write('\t%d\t%s\t%d\t%s\n' % (ISApl1_status['upstream'][0], ISApl1_status['upstream'][1], \
+                        ISApl1_status['downstream'][0], ISApl1_status['downstream'][1]))
+
+            else:
+                output_file.write('%s\t%s\t%s\n' % (fasta_file, fasta_name, '\t'.join(['NA' for i in range(0,11)]))) # 11 empty fields

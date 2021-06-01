@@ -5,6 +5,9 @@
 # Useful functions for DNA sequences
 
 from Bio import SeqIO
+import os
+import subprocess
+import pandas as pd
 
 # Read fasta to dict
 def read_fasta(fasta_file):
@@ -18,7 +21,8 @@ def read_fasta(fasta_file):
         fasta_dict (dict)
             Dictionary of sequences in fasta
     '''
-    fasta_parsed = SeqIO.parse(fasta_file, 'fasta') # read in fasta
+    path_to_file = os.path.abspath(fasta_file) # get absolute path
+    fasta_parsed = SeqIO.parse(path_to_file, 'fasta') # read in fasta
     fasta_dict = SeqIO.to_dict(fasta_parsed, lambda rec:rec.id) # convert to dict
     return(fasta_dict)
 
