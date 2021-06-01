@@ -73,8 +73,20 @@ def classify_mcr_1_variant(mcr_1_seq):
 
 def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     '''Analyses the upstream and downstream presence of ISApl1 using minimap2.
-    Returns a dict with the length of ISApl1 and the strand.
-    Involves a collapsing of information - doesn't return start and end positions.'''
+
+    Args:
+        contig (SeqIO record)
+            Record for contig containing mcr-1
+        mcr_1_start (int)
+            Start position of mcr-1 gene
+        mcr_1_end
+            End position of mcr-1 gene
+
+    Returns:
+        ISApl1_dict (dict)
+            Dict with keys 'upstream', 'downstream' storing the length and strand of ISApl1
+
+    N.B. Involves a collapsing of information - doesn't return start and end positions.'''
     # Search with minimap2 for ISApl1
     ISApl1_dict = {'upstream' : [0, 'NA'], 'downstream' : [0, 'NA']}
     if mcr_1_strand == '+':
