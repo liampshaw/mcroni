@@ -60,8 +60,9 @@ def classify_mcr_1_variant(mcr_1_seq):
     Returns:
         variant_name (str)
             Name of variant. 'Other' if sequence non-identical to any known variant.
+                - to add: return closest variant(s)
     '''
-    mcr_1_variants = SeqIO.to_dict(SeqIO.parse('mcr-1-variants.fasta', 'fasta'),
+    mcr_1_variants = SeqIO.to_dict(SeqIO.parse('data/mcr1-variants.fa', 'fasta'),
                                 lambda rec : rec.id)
     for variant in mcr_1_variants:
         if mcr_1_seq==str(mcr_1_variants[variant].seq):
@@ -88,7 +89,7 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     f = open('tmp.fa', 'w')
     f.write('>tmp\n%s' % contig_str)
     f.close()
-    minimap_process = subprocess.Popen(['minimap2', 'ISApl1.fasta', \
+    minimap_process = subprocess.Popen(['minimap2', 'data/ISApl1.fa', \
                             'tmp.fa'],
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     minimap_out, _ = minimap_process.communicate() # Read the output from stdout
