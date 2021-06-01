@@ -1,5 +1,10 @@
-from Bio import SeqIO
+#!/usr/bin/env python
+# vim: set fileencoding=<utf-8> :
+# Copyright 2021 Liam Shaw
 
+# Useful functions for DNA sequences
+
+from Bio import SeqIO
 
 # Read fasta to dict
 def read_fasta(fasta_file):
@@ -33,7 +38,7 @@ def reverse_complement(seq):
     # Mapping of bases to complement (note that N->N)
     complement_map = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
     bases = list(seq.upper()) # Make sure upper-case
-    # Check if non-standard characters
+    # Check if non-standard bases are present, and error if so
     if any([x not in list(complement_map.keys()) for x in bases]):
         non_standard_bases = [x for x in bases if x not in list(complement_map.keys())]
         print('Refusing to reverse complement!')
