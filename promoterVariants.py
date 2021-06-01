@@ -6,26 +6,7 @@ import subprocess
 import re
 import pandas as pd
 import numpy as np
-
-# Read fasta to dict
-def read_fasta(fasta_file):
-    '''Simply uses SeqIO to read in fasta as dict.'''
-    return(SeqIO.to_dict(SeqIO.parse(fasta_file, 'fasta'), lambda rec:rec.id))
-
-# For reverse complementing
-alt_map = {'ins':'0'}
-complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
-
-def reverse_complement(seq):
-    '''Returns the reverse complement of a DNA sequence.'''
-    for k,v in alt_map.items():
-        seq = seq.replace(k,v)
-    bases = list(seq)
-    bases = reversed([complement.get(base,base) for base in bases])
-    bases = ''.join(bases)
-    for k,v in alt_map.items():
-        bases = bases.replace(v,k)
-    return bases
+import seqFunctions as sf
 
 def plasmid_replicons(fasta_file, contig, database='plasmidfinder'):
     '''Identifies and returns a list of plasmid replicons present on a contig (using abricate) and also within the wider genome.'''
@@ -122,7 +103,7 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
 def cut_upstream_region(fasta_file, threshold=76):
     '''Returns the upstream region of mcr-1 in a genome (assumes just one hit).'''
     print('Reading in genome from file '+fasta_file+'...')
-    contigs = read_fasta(fasta_file)
+    contigs = sf.read_fasta(fasta_file)
     print('Making blast database...')
     subprocess.check_call(['makeblastdb', '-in', fasta_file, '-dbtype', 'nucl'],\
         stderr=subprocess.DEVNULL,\
@@ -206,7 +187,7 @@ with open(sys.argv[1], 'r') as f:
                 # Write to file
                 output_file.write('\t%s\t%s' % (plasmids[0], plasmids[1]))
                 # Get ISApl1 status
-                ISApl1_status = classify_ISApl1_presence(read_fasta(fasta_file)[mcr_1_contig], mcr_1_start, mcr_1_strand)
+                ISApl1_status = classify_ISApl1_presence(sf.read_fasta(fasta_file)[mcr_1_contig], mcr_1_start, mcr_1_strand)
                 # write to file
                 output_file.write('\t%d\t%s\t%d\t%s\n' % (ISApl1_status['upstream'][0], ISApl1_status['upstream'][1], \
                         ISApl1_status['downstream'][0], ISApl1_status['downstream'][1]))
