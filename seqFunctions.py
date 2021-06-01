@@ -19,7 +19,7 @@ def read_fasta(fasta_file):
 
 
 def reverse_complement(seq):
-    '''Returns the reverse complement of a DNA sequence.
+    '''Returns the reverse complement of a DNA sequence. Assumes no insertions.
 
     Args:
         seq (str)
@@ -28,16 +28,18 @@ def reverse_complement(seq):
     Returns:
         bases (str)
             Reverse complemented string (e.g. CGGAT)
+            (N.B. if seq contains non-standard characters, returns None)
     '''
-    # For reverse_complement function
-    alt_map = {'ins':'0'}
-    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
-    # Replace any insertions.
-    for k,v in alt_map.items():
-        seq = seq.replace(k,v)
-    bases = list(seq)
-    bases = reversed([complement.get(base,base) for base in bases])
-    bases = ''.join(bases)
-    for k,v in alt_map.items():
-        bases = bases.replace(v,k)
-    return bases
+    # Mapping of bases to complement (note that N->N)
+    complement_map = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
+    bases = list(seq.upper()) # Make sure upper-case
+    # Check if non-standard characters
+    if any([x not in list(complement_map.keys()) for x in bases]):
+        non_standard_bases = [x for x in bases if x not in list(complement_map.keys())]
+        print('Refusing to reverse complement!')
+        print('Your sequence contains non-standard characters:', ''.join(set(non_standard_bases)))
+        return
+    else:
+        bases = reversed([complement_map.get(base,base) for base in bases])
+        bases = ''.join(bases)
+        return(bases)
