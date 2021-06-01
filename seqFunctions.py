@@ -49,6 +49,35 @@ def reverse_complement(seq):
         bases = ''.join(bases)
         return(bases)
 
+def classify_variant(seq, variants_db='data/mcr1-variants.fa'):
+    '''Classifies a variant sequence from a db fasta of known variants.
+
+    Args:
+        seq (str)
+            Sequence of the gene/region (must be full-length).
+        variants_db (str)
+            Fasta filename of known variant database.
+                mcr1-variants.fa (default)
+                    mcr-1 gene. mcr-1.1 to mcr-1.13 included.
+                promoter-region-variants.fa
+                    75 bp region upstream of mcr-1 gene.
+                    Consensus sequence + 8 variants as classified by
+                    Lois Ogunlana, University of Oxford.
+
+    Returns:
+        variant_name (str)
+            Name of variant. 'Other' if sequence non-identical to any known variant.
+                - to add: return closest variant(s)
+    '''
+    variants = SeqIO.to_dict(SeqIO.parse(variants_db, 'fasta'),
+                                lambda rec : rec.id)
+    for variant in variants:
+        if seq==str(variants[variant].seq):
+            variant_name = re.sub('\\|.*', '', variant)
+        else:
+            variant_name = 'Other' # If sequence isn't a named variant
+    return(variant_name)
+
 def plasmid_replicons(fasta_file, contig_name, database='plasmidfinder'):
     '''Identifies and returns a list of plasmid replicons present on a contig and also within the whole fasta.
 

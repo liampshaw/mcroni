@@ -13,26 +13,7 @@ import numpy as np
 
 import seqFunctions as sf
 
-def classify_mcr_1_variant(mcr_1_seq):
-    '''Classifies an mcr-1 variant (mcr-1.1 to mcr-1.13 included).
 
-    Args:
-        mcr_1_seq (str)
-            Sequence of mcr-1 gene (must be full-length).
-
-    Returns:
-        variant_name (str)
-            Name of variant. 'Other' if sequence non-identical to any known variant.
-                - to add: return closest variant(s)
-    '''
-    mcr_1_variants = SeqIO.to_dict(SeqIO.parse('data/mcr1-variants.fa', 'fasta'),
-                                lambda rec : rec.id)
-    for variant in mcr_1_variants:
-        if mcr_1_seq==str(mcr_1_variants[variant].seq):
-            variant_name = re.sub('\\|.*', '', variant)
-        else:
-            variant_name = 'Other' # If sequence isn't a named variant
-    return(variant_name)
 
 def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     '''Analyses the upstream and downstream presence of ISApl1 using minimap2.
@@ -152,7 +133,7 @@ def cut_upstream_region(fasta_file, threshold=76):
         mcr_1_seq = contig_seq[mcr_1_start-1:mcr_1_end]
     if mcr_1_strand=='-':
         mcr_1_seq = reverse_complement(contig_seq[mcr_1_end-1:mcr_1_start])
-    mcr_1_variant = classify_mcr_1_variant(mcr_1_seq)
+    mcr_1_variant = sf.classify_variant(mcr_1_seq)
 
     # Use this information to extract the 75bp upstream of mcr-1
     if mcr_1_strand == '+':
