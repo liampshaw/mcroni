@@ -48,3 +48,40 @@ def reverse_complement(seq):
         bases = reversed([complement_map.get(base,base) for base in bases])
         bases = ''.join(bases)
         return(bases)
+
+def plasmid_replicons(fasta_file, contig_name, database='plasmidfinder'):
+    '''Identifies and returns a list of plasmid replicons present on a contig and also within the whole fasta.
+
+    Args:
+        fasta_file (str)
+            Filename of fasta
+        contig_name (str)
+            ID of contig within fasta
+        database (str)
+            Abricate database to use
+
+    Returns:
+        plasmid_output (list)
+            List of two comma-separated strings:
+                - plasmid replicons found on contig_name
+                - plasmid replicons found elsewhere in genome
+
+    N.B. Uses default thresholds of abricate (--minid 80, --mincov 80).
+    '''
+    print('Finding plasmid replicons using abricate...')
+    abricate_command = ['abricate', '--db', database, fasta_file]
+    abricate_process = subprocess.Popen(abricate_command, stdout = subprocess.PIPE, stderr = subprocess.PIPE) # Runs abricate
+    abricate_out, _ = abricate_process.communicate() # Read the output from stdout
+    abricate_out = abricate_out.decode() # Decode
+    with open('tmp.out', 'w') as out: # Write to file
+        out.write(abricate_out)
+    # Read back in
+    data = pd.read_csv('tmp.out', sep='\t', header = 0)
+    # Get all plasmid replicons elsewhere in genome
+    total_replicons = list(data[~data['SEQUENCE'].str.contains(contig_name, regex=False)]['GENE'])
+    # Get just those on the contig
+    contig_replicons = list(data[data['SEQUENCE'].str.contains(contig_name, regex=False)]['GENE'])
+    os.remove('tmp.out') # Remove abricate file
+    # Output list of two comma-separated strings
+    plasmid_output = [','.join(contig_replicons), ','.join(total_replicons)]
+    return(plasmid_output)

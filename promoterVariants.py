@@ -13,43 +13,6 @@ import numpy as np
 
 import seqFunctions as sf
 
-def plasmid_replicons(fasta_file, contig_name, database='plasmidfinder'):
-    '''Identifies and returns a list of plasmid replicons present on a contig (using abricate) and also within the wider genome.
-
-    Args:
-        fasta_file (str)
-            Filename of fasta
-        contig_name (str)
-            ID of contig within fasta
-        database (str)
-            Abricate database to use
-
-    Returns:
-        plasmid_output (list)
-            List of two comma-separated strings:
-                - plasmid replicons found on contig_name
-                - plasmid replicons found elsewhere in genome
-
-    N.B. Uses default thresholds of abricate (--minid 80, --mincov 80).
-    '''
-    print('Finding plasmid replicons using abricate...')
-    abricate_command = ['abricate', '--db', database, fasta_file]
-    abricate_process = subprocess.Popen(abricate_command, stdout = subprocess.PIPE, stderr = subprocess.PIPE) # Runs abricate
-    abricate_out, _ = abricate_process.communicate() # Read the output from stdout
-    abricate_out = abricate_out.decode() # Decode
-    with open('tmp.out', 'w') as out: # Write to file
-        out.write(abricate_out)
-    # Read back in
-    data = pd.read_csv('tmp.out', sep='\t', header = 0)
-    # Get all plasmid replicons elsewhere in genome
-    total_replicons = list(data[~data['SEQUENCE'].str.contains(contig_name, regex=False)]['GENE'])
-    # Get just those on the contig
-    contig_replicons = list(data[data['SEQUENCE'].str.contains(contig_name, regex=False)]['GENE'])
-    os.remove('tmp.out') # Remove abricate file
-    # Output list of two comma-separated strings
-    plasmid_output = [','.join(contig_replicons), ','.join(total_replicons)]
-    return(plasmid_output)
-
 def classify_mcr_1_variant(mcr_1_seq):
     '''Classifies an mcr-1 variant (mcr-1.1 to mcr-1.13 included).
 
@@ -85,8 +48,7 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     Returns:
         ISApl1_dict (dict)
             Dict with keys 'upstream', 'downstream' storing the length and strand of ISApl1
-
-    N.B. Involves a collapsing of information - doesn't return start and end positions.'''
+    '''
     # Search with minimap2 for ISApl1
     ISApl1_dict = {'upstream' : [0, 'NA'], 'downstream' : [0, 'NA']}
     if mcr_1_strand == '+':
@@ -138,8 +100,11 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         if True in downstream_l:
             downstream_ind = downstream_l.index(True)
             ISApl1_dict['downstream'] = [ISApl1_lengths[downstream_ind], strand_map[strands[downstream_ind]]]
-    # return the dict
-    return(ISApl1_dict)
+        # return the dict
+        return(ISApl1_dict)
+    else:
+        print('Error! Minimap2 returned no output.')
+        return
 
 
 
