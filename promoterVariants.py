@@ -1,4 +1,8 @@
-# Read in files
+#!/usr/bin/env python
+# vim: set fileencoding=<utf-8> :
+# Copyright 2021 Liam Shaw
+
+# Libraries
 import sys
 import os
 from Bio import SeqIO
@@ -6,6 +10,7 @@ import subprocess
 import re
 import pandas as pd
 import numpy as np
+
 import seqFunctions as sf
 
 def plasmid_replicons(fasta_file, contig, database='plasmidfinder'):
@@ -94,9 +99,6 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
             ISApl1_dict['downstream'] = [ISApl1_lengths[downstream_ind], strand_map[strands[downstream_ind]]]
     # return the dict
     return(ISApl1_dict)
-        # Possibly: could just reverse complement the whole contig and save the hassle? Then convert back afterwards if really need to.
-        # ^ this is now what I'm doing, and it seems to work quite nicely. But need to encode the strand information for encoding if the ISApl1 is flipped
-
 
 
 
@@ -144,9 +146,7 @@ def cut_upstream_region(fasta_file, threshold=76):
         mcr_1_seq = contig_seq[mcr_1_start-1:mcr_1_end]
     if mcr_1_strand=='-':
         mcr_1_seq = reverse_complement(contig_seq[mcr_1_end-1:mcr_1_start])
-    #print(mcr_1_seq)
     mcr_1_variant = classify_mcr_1_variant(mcr_1_seq)
-    #print(mcr_1_variant)
 
     # Use this information to extract the 75bp upstream of mcr-1
     if mcr_1_strand == '+':
@@ -161,14 +161,11 @@ def cut_upstream_region(fasta_file, threshold=76):
         cut_position = mcr_1_start+threshold
         if cut_position > len(contig_seq):
             print('Contig is not long enough...')
-            return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, ''])        #print(contig_seq)
+            return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, ''])
         mcr_1_upstream = reverse_complement(contig_seq[mcr_1_start:cut_position-1])
-        #print(mcr_1_upstream)
-        #mcr_1_seq = contig_seq[(mcr_1_start-1826):mcr_1_start]
     print(mcr_1_upstream)
     return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream])
-    #print(reverse_complement(mcr_1_seq))
-    #print(contig_seq.find('AAAAAATTATGCG'))
+
 
 with open(sys.argv[1], 'r') as f:
     with open(sys.argv[2], 'w') as output_file:
