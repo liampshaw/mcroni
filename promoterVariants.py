@@ -14,7 +14,9 @@ import numpy as np
 import seqFunctions as sf
 
 def plasmid_replicons(fasta_file, contig, database='plasmidfinder'):
-    '''Identifies and returns a list of plasmid replicons present on a contig (using abricate) and also within the wider genome.'''
+    '''Identifies and returns a list of plasmid replicons present on a contig (using abricate) and also within the wider genome.
+
+    '''
     print('Finding plasmid replicons using abricate...')
     abricate_command = ['abricate', '--db', database, fasta_file]
     abricate_process = subprocess.Popen(abricate_command, stdout = subprocess.PIPE, stderr = subprocess.PIPE) # Runs abricate
@@ -166,6 +168,10 @@ def cut_upstream_region(fasta_file, threshold=76):
     print(mcr_1_upstream)
     return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream])
 
+if __name__ == "__main__":
+    # First argument is input filename (fasta)
+    # Second argument is output filename ()
+    with args[1]
 
 with open(sys.argv[1], 'r') as f:
     with open(sys.argv[2], 'w') as output_file:
