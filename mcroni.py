@@ -18,7 +18,7 @@ import seqFunctions as sf
 
 def get_options():
     parser = argparse.ArgumentParser(description='Analyse the local genomic context of mcr-1 including variants in the upstream promoter region.',
-                                     prog='promoterVariants')
+                                     prog='mcroni')
     input_group = parser.add_mutually_exclusive_group(required=True) # mutually exclusive group
     input_group.add_argument('--fasta', help='Fasta file') # either f or l, but not both
     input_group.add_argument('--filelist', help='Alternatively: a list of fasta files')
@@ -163,8 +163,7 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
 # Header for output file
 output_header = 'file\tsample\tcontig\tmcr1.start\tmcr1.strand\tmcr1.variant\tmcr1.upstream.seq\tplasmids.contig\tplasmids.elsewhere\tisapl1.upstream.length\tisapl1.upstream.orientation\tisapl1.downstream.length\tisapl1.downstream.length\n'
 
-
-if __name__ == "__main__":
+def main:
     args = get_options()
     print(args)
     fastas = []
@@ -198,3 +197,6 @@ if __name__ == "__main__":
 
             else:
                 output_file.write('%s\t%s\t%s\n' % (fasta_file, fasta_name, '\t'.join(['NA' for i in range(0,11)]))) # 11 empty fields
+
+if __name__ == "__main__":
+    main()
