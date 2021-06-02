@@ -82,11 +82,10 @@ def classify_variant(seq, variants_db=get_data('mcr1-variants.fa')):
     '''
     variants = SeqIO.to_dict(SeqIO.parse(variants_db, 'fasta'),
                                 lambda rec : rec.id)
+    variant_name = 'Other' # Initially start as other
     for variant in variants:
-        if seq==str(variants[variant].seq):
+        if seq==str(variants[variant].seq): # Only update if exact match
             variant_name = re.sub('\\|.*', '', variant)
-        else:
-            variant_name = 'Other' # If sequence isn't a named variant
     return(variant_name)
 
 def plasmid_replicons(fasta_file, contig_name, database='plasmidfinder'):
