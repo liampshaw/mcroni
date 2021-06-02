@@ -1,8 +1,8 @@
 *.txt
-__pycache__/*
+__pycache__
 build/*
 dist/*
-mcroni/__pycache__/
-mcroni.egg-info/*
+mcroni/__pycache__
+mcroni.egg-info
 *.pyc 
 
