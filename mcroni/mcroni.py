@@ -11,6 +11,7 @@ import re
 import argparse
 import pandas as pd
 import numpy as np
+import math
 
 import seqFunctions as sf
 
@@ -36,11 +37,11 @@ def cut_upstream_region(fasta_file, threshold=76):
         stdout=open(os.devnull, 'w'))
     print('Searching for mcr-1...')
     blast_process = subprocess.Popen(['blastn', '-db', fasta_file, \
-                            '-query', get_data('mcr1.fa'), \
+                            '-query', sf.get_data('mcr1.fa'), \
                             '-outfmt', '6'],
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     blast_out, _ = blast_process.communicate() # Read the output from stdout
-    blast_output = blast_out.decode().split('\t') # Decode
+    blast_output = re.split('\n|\t',blast_out.decode()) # Decode
     print(blast_output)
     print('Removing temporary blast databases...')
     os.remove(fasta_file+'.nin')
@@ -51,6 +52,10 @@ def cut_upstream_region(fasta_file, threshold=76):
     if blast_output == ['']:
         print('No blast hit for mcr-1!')
         return
+    elif len(blast_output)>12: # should be 12 entries for one hit
+        blast_output.pop(-1) # remove empty last entry
+        n_hits = int(len(blast_output)/12)
+        print('Warning: blast found', n_hits, 'occurrences of mcr-1  in this genome (expected: one hit). This may be biologically interesting but mcroni is not designed for analysing multiple occurrences together. Suggest manual inspection and potentially splitting the genome to analyse each occurrence separately.')
     mcr_1_contig = blast_output[1]
     mcr_1_start = int(blast_output[8])
     mcr_1_end = int(blast_output[9])
@@ -119,7 +124,7 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     f = open('tmp.fa', 'w')
     f.write('>tmp\n%s' % contig_str)
     f.close()
-    minimap_process = subprocess.Popen(['minimap2', get_data('ISApl1.fa'), \
+    minimap_process = subprocess.Popen(['minimap2', sf.get_data('ISApl1.fa'), \
                             'tmp.fa'],
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     minimap_out, _ = minimap_process.communicate() # Read the output from stdout
