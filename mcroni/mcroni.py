@@ -13,7 +13,7 @@ import pandas as pd
 import numpy as np
 import math
 
-import seqFunctions as sf
+from mcroni import seqFunctions as sf
 
 
 
