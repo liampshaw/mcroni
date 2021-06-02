@@ -8,6 +8,12 @@ from Bio import SeqIO
 import os
 import subprocess
 import pandas as pd
+import re
+
+_ROOT = os.path.abspath(os.path.dirname(__file__))
+def get_data(path):
+    '''Returns the absolute path for a data file.'''
+    return os.path.join(_ROOT, 'data', path)
 
 # Read fasta to dict
 def read_fasta(fasta_file):
@@ -53,7 +59,7 @@ def reverse_complement(seq):
         bases = ''.join(bases)
         return(bases)
 
-def classify_variant(seq, variants_db='data/mcr1-variants.fa'):
+def classify_variant(seq, variants_db=get_data('mcr1-variants.fa')):
     '''Classifies a variant sequence from a db fasta of known variants.
 
     Args:
@@ -72,6 +78,7 @@ def classify_variant(seq, variants_db='data/mcr1-variants.fa'):
         variant_name (str)
             Name of variant. 'Other' if sequence non-identical to any known variant.
                 - to add: return closest variant(s)
+                - to add: throw an error if the sequence is too different ('are you sure this is what you think it is?')
     '''
     variants = SeqIO.to_dict(SeqIO.parse(variants_db, 'fasta'),
                                 lambda rec : rec.id)

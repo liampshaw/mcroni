@@ -36,7 +36,7 @@ def cut_upstream_region(fasta_file, threshold=76):
         stdout=open(os.devnull, 'w'))
     print('Searching for mcr-1...')
     blast_process = subprocess.Popen(['blastn', '-db', fasta_file, \
-                            '-query', 'data/mcr1.fa', \
+                            '-query', get_data('mcr1.fa'), \
                             '-outfmt', '6'],
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     blast_out, _ = blast_process.communicate() # Read the output from stdout
@@ -119,7 +119,7 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     f = open('tmp.fa', 'w')
     f.write('>tmp\n%s' % contig_str)
     f.close()
-    minimap_process = subprocess.Popen(['minimap2', 'data/ISApl1.fa', \
+    minimap_process = subprocess.Popen(['minimap2', get_data('ISApl1.fa'), \
                             'tmp.fa'],
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     minimap_out, _ = minimap_process.communicate() # Read the output from stdout
