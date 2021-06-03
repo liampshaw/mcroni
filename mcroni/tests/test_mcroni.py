@@ -9,5 +9,5 @@ import mcroni.seqFunctions as sf
 
 def test_classify_variant():
       with open('fake.fa', 'w') as f: # make a fake fasta file
-          f.write('>FAKE_1\nAAA\nFAKE_2\nTTT')
+          f.write('>FAKE_1\nAAA\n>FAKE_2\nTTT')
       assert sf.classify_variant('AAA', variants_db='fake.fa')=='FAKE_1'
