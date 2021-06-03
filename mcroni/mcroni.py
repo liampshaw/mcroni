@@ -99,6 +99,7 @@ def cut_upstream_region(fasta_file, threshold=76):
             mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:cut_position-1]+''.join(['N' for i in range(length_pad)]))
         else:
             mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:cut_position-1])
+    print('\nThe upstream region of mcr-1 is:')
     print(mcr_1_upstream)
     return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream])
 
@@ -125,8 +126,8 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         contig_str = sf.reverse_complement(str(contig.seq))
         mcr_1_start = len(contig_str)-mcr_1_start
     # Need two tests for ISApl1 - upstream of mcr-1? if yes, then how much? then, downstream of mcr-1, and if yes, then how much?
-    upstream_ISApl1_window = 1260 # 1254 in KX528699
-    downstream_ISApl1_window = 3500 # 3493 in KX528699
+    upstream_ISApl1_window = 1255 # Based on 1254 in KX528699
+    downstream_ISApl1_window = 3494 # Based on 3493 in KX528699
     print('Searching for ISApl1...')
     f = open('tmp.fa', 'w')
     f.write('>tmp\n%s' % contig_str)
@@ -169,11 +170,17 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
             downstream_ind = downstream_l.index(True)
             ISApl1_dict['downstream'] = [ISApl1_lengths[downstream_ind], strand_map[strands[downstream_ind]]]
     # return the dict
+    print('\nThe summary of ISApl1 presence is:')
+    print(ISApl1_dict)
     return(ISApl1_dict)
 
 
 # Header for output file
-output_header = 'file\tsample\tcontig\tmcr1.start\tmcr1.strand\tmcr1.variant\tmcr1.upstream.seq\tplasmids.contig\tplasmids.elsewhere\tisapl1.upstream.length\tisapl1.upstream.orientation\tisapl1.downstream.length\tisapl1.downstream.length\n'
+output_header = ('\t').join['FILE', 'ISOLATE', 'MCR1.CONTIG', 'MCR1.START', 'MCR1.STRAND',
+                            'MCR1.VARIANT', 'MCR1.UPSTREAM.SEQUENCE',
+                            'PLASMIDS.ON.MCR1.CONTIG', 'PLASMIDS.ELSEWHERE',
+                            'ISAPL1.UPSTREAM.LENGTH', 'ISAPL1.UPSTREAM.STRAND',
+                            'ISAPL1.DOWNSTREAM.LENGTH', 'ISAPL1.DOWNSTREAM.STRAND']
 
 def main():
     args = get_options()
@@ -189,7 +196,7 @@ def main():
 
 
     with open(args.output, 'w') as output_file:
-        output_file.write(output_header)
+        output_file.write(output_header+'\n')
         for fasta_file in fastas:
             fasta_name = re.sub('\\..*', '', re.sub('.*\\/', '', fasta_file))
             output = cut_upstream_region(fasta_file)
