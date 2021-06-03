@@ -56,7 +56,7 @@ def cut_upstream_region(fasta_file, threshold=76):
     elif len(blast_output)>13: # should be 12 entries + empty 13th entry for one hit, so more implies >1 hit
         blast_output.pop(-1) # remove empty last entry
         n_hits = int(len(blast_output)/12)
-        print('\ERROR: blast found', n_hits, 'occurrences of mcr-1  in this genome (expected: one hit). This may be biologically interesting but mcroni is not designed for analysing multiple occurrences together. Suggest manual inspection and potentially splitting the genome to analyse each occurrence separately.')
+        print('\nWARNING: blast found', n_hits, 'occurrences of mcr-1  in this genome (expected: one hit). This may be biologically interesting but mcroni is not designed for analysing multiple occurrences together. mcroni will analyse ONLY the first hit. Suggest manual inspection and potentially splitting the genome to analyse other occurrences separately.')
     mcr_1_contig = blast_output[1]
     mcr_1_start = int(blast_output[8])
     mcr_1_end = int(blast_output[9])
@@ -83,16 +83,22 @@ def cut_upstream_region(fasta_file, threshold=76):
         cut_position = mcr_1_start-threshold
         if cut_position < 0:
             print('\nWARNING: the mcr-1 contig is not long enough to extract the expected promoter region.')
-            return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, ''])
-        mcr_1_upstream = contig_seq[cut_position:mcr_1_start-1]
+            print('nmcroni will pad the sequence with Ns.')
+            length_pad = abs(cut_position)
+            mcr_1_upstream = ''.join(['N' for i in range(abs(cut_position))])+contig_seq[0:mcr_1_start-1]
+        else:
+            mcr_1_upstream = contig_seq[cut_position:mcr_1_start-1]
 
 
     elif mcr_1_strand == '-':
         cut_position = mcr_1_start+threshold
         if cut_position > len(contig_seq):
-            print('\nWARNING: the mcr-1 contig is not long enough to extract the expected promoter region.')
-            return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, ''])
-        mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:cut_position-1])
+            print('\nWARNING: the mcr-1 contig is not long enough to extract the requested upstream region.')
+            print('\nmcroni will pad the sequence with Ns.')
+            length_pad = cut_position - len(contig_seq) - 1
+            mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:cut_position-1]+''.join(['N' for i in range(length_pad)]))
+        else:
+            mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:cut_position-1])
     print(mcr_1_upstream)
     return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream])
 
