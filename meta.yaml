@@ -38,9 +38,9 @@ test:
   source_files:
     - mcroni/tests/test_mcroni.py
   commands:
+    - pytest
     - mcroni --help
     - mcroni --fasta mcr1.fa --output test.txt
-    - pytest
 
 about:
   home: https://github.com/liampshaw/mcroni
