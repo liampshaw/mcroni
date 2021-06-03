@@ -13,9 +13,9 @@ import pandas as pd
 import numpy as np
 import math
 
-#from mcroni import seqFunctions as sf # for conda
+from mcroni import seqFunctions as sf # for conda
 # for local usage
-import seqFunctions as sf
+#import seqFunctions as sf
 
 
 
@@ -110,7 +110,7 @@ def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
         if upstream_cut_position > len(contig_seq):
             print('\nWARNING: the mcr-1 contig is not long enough to extract the expected upstream region.')
             print('         --> mcroni will pad the sequence with gaps (-).')
-            length_pad = upstream_cut_position - len(contig_seq) 
+            length_pad = upstream_cut_position - len(contig_seq)
             mcr_1_upstream = ''.join(['-' for i in range(length_pad)]) + sf.reverse_complement(contig_seq[mcr_1_start:len(contig_seq)])
         else:
             mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:upstream_cut_position])
