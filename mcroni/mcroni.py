@@ -13,7 +13,9 @@ import pandas as pd
 import numpy as np
 import math
 
-from mcroni import seqFunctions as sf
+# from mcroni import seqFunctions as sf # for conda
+# for local usage
+import seqFunctions as sf
 
 
 
@@ -29,33 +31,32 @@ def get_options():
 
 def cut_upstream_region(fasta_file, threshold=76):
     '''Returns the upstream region of mcr-1 in a genome (assumes just one hit).'''
-    print('Reading in genome from file '+fasta_file+'...')
+    print('\nReading in genome from file '+fasta_file+'...')
     contigs = sf.read_fasta(fasta_file)
-    print('Making blast database...')
+    print('\nMaking blast database...')
     subprocess.check_call(['makeblastdb', '-in', fasta_file, '-dbtype', 'nucl'],\
         stderr=subprocess.DEVNULL,\
         stdout=open(os.devnull, 'w'))
-    print('Searching for mcr-1...')
+    print('\nSearching for mcr-1...')
     blast_process = subprocess.Popen(['blastn', '-db', fasta_file, \
                             '-query', sf.get_data('mcr1.fa'), \
                             '-outfmt', '6'],
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     blast_out, _ = blast_process.communicate() # Read the output from stdout
     blast_output = re.split('\n|\t',blast_out.decode()) # Decode
-    print(blast_output)
-    print('Removing temporary blast databases...')
+    print('\nRemoving temporary blast databases...')
     os.remove(fasta_file+'.nin')
     os.remove(fasta_file+'.nhr')
     os.remove(fasta_file+'.nsq')
 
     # Looking through to cut out upstream region
     if blast_output == ['']:
-        print('No blast hit for mcr-1!')
+        print('\nNo blast hit for mcr-1!')
         return
-    elif len(blast_output)>12: # should be 12 entries for one hit
+    elif len(blast_output)>13: # should be 12 entries + empty 13th entry for one hit, so more implies >1 hit
         blast_output.pop(-1) # remove empty last entry
         n_hits = int(len(blast_output)/12)
-        print('Warning: blast found', n_hits, 'occurrences of mcr-1  in this genome (expected: one hit). This may be biologically interesting but mcroni is not designed for analysing multiple occurrences together. Suggest manual inspection and potentially splitting the genome to analyse each occurrence separately.')
+        print('\ERROR: blast found', n_hits, 'occurrences of mcr-1  in this genome (expected: one hit). This may be biologically interesting but mcroni is not designed for analysing multiple occurrences together. Suggest manual inspection and potentially splitting the genome to analyse each occurrence separately.')
     mcr_1_contig = blast_output[1]
     mcr_1_start = int(blast_output[8])
     mcr_1_end = int(blast_output[9])
@@ -64,9 +65,9 @@ def cut_upstream_region(fasta_file, threshold=76):
             mcr_1_strand = '+' # On positive strand
         else:
             mcr_1_strand = '-' # On negative strand
-        print('mcr-1 start position is:', mcr_1_start, 'on the', mcr_1_strand, 'strand', 'of contig', mcr_1_contig)
+        print('\nmcr-1 start position is:', mcr_1_start, 'on the', mcr_1_strand, 'strand', 'of contig', mcr_1_contig)
     else:
-        print('Does not contain a full-length mcr-1!')
+        print('\ERROR: sequence does not contain a full-length mcr-1!')
         return
 
     # Get mcr-1 variant
@@ -81,7 +82,7 @@ def cut_upstream_region(fasta_file, threshold=76):
     if mcr_1_strand == '+':
         cut_position = mcr_1_start-threshold
         if cut_position < 0:
-            print('Contig is not long enough...')
+            print('\nWARNING: the mcr-1 contig is not long enough to extract the expected promoter region.')
             return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, ''])
         mcr_1_upstream = contig_seq[cut_position:mcr_1_start-1]
 
@@ -89,7 +90,7 @@ def cut_upstream_region(fasta_file, threshold=76):
     elif mcr_1_strand == '-':
         cut_position = mcr_1_start+threshold
         if cut_position > len(contig_seq):
-            print('Contig is not long enough...')
+            print('\nWARNING: the mcr-1 contig is not long enough to extract the expected promoter region.')
             return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, ''])
         mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:cut_position-1])
     print(mcr_1_upstream)
