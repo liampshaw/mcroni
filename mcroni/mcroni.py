@@ -13,9 +13,9 @@ import pandas as pd
 import numpy as np
 import math
 
-# from mcroni import seqFunctions as sf # for conda
+from mcroni import seqFunctions as sf # for conda
 # for local usage
-import seqFunctions as sf
+#import seqFunctions as sf
 
 
 
@@ -28,6 +28,9 @@ def get_options():
     parser.add_argument('--output', help='Output file', required=True)
     return parser.parse_args()
 
+def exit_message(message):
+    sys.stderr.write(str(message) + "\n")
+    sys.exit(1)
 
 def cut_upstream_region(fasta_file, threshold=76):
     '''Returns the upstream region of mcr-1 in a genome (assumes just one hit).'''
