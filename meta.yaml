@@ -1,5 +1,5 @@
-{% set version = "v0.4.2" %}
-{% set sha256 = "a75c19b48d9b0108ebaaaeb411a63b0b44549212da348ded55142881a1aa9026" %}
+{% set version = "v0.4.5" %}
+{% set sha256 = "c08109d06432c93a2416978803bbe1320098dd4a84270805f951b8f40d280056" %}
 
 package:
   name: mcroni
