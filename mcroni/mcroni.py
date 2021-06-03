@@ -13,9 +13,9 @@ import pandas as pd
 import numpy as np
 import math
 
-from mcroni import seqFunctions as sf # for conda
+#from mcroni import seqFunctions as sf # for conda
 # for local usage
-#import seqFunctions as sf
+import seqFunctions as sf
 
 
 
@@ -31,6 +31,87 @@ def get_options():
 def exit_message(message):
     sys.stderr.write(str(message) + "\n")
     sys.exit(1)
+
+# a general function to cut out a section of a genome upstream_bases and downstream_bases away from a gene
+def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
+    '''Cuts out the region around mcr-1.'''
+    print('\nReading in genome from file '+fasta_file+'...')
+    contigs = sf.read_fasta(fasta_file)
+    print('\nMaking blast database...')
+    subprocess.check_call(['makeblastdb', '-in', fasta_file, '-dbtype', 'nucl'],\
+        stderr=subprocess.DEVNULL,\
+        stdout=open(os.devnull, 'w'))
+    print('\nSearching for mcr-1...')
+    blast_process = subprocess.Popen(['blastn', '-db', fasta_file, \
+                            '-query', sf.get_data('mcr1.fa'), \
+                            '-outfmt', '6'],
+                            stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    blast_out, _ = blast_process.communicate() # Read the output from stdout
+    blast_output = re.split('\n|\t',blast_out.decode()) # Decode
+    print('\nRemoving temporary blast databases...')
+    os.remove(fasta_file+'.nin')
+    os.remove(fasta_file+'.nhr')
+    os.remove(fasta_file+'.nsq')
+    # Looking through to cut out upstream region
+    if blast_output == ['']:
+        print('\nNo blast hit for mcr-1!')
+        return
+    elif len(blast_output)>13: # should be 12 entries + empty 13th entry for one hit, so more implies >1 hit
+        blast_output.pop(-1) # remove empty last entry
+        n_hits = int(len(blast_output)/12)
+        print('\nWARNING: blast found', n_hits, 'occurrences of mcr-1  in this genome (expected: one hit). This may be biologically interesting but mcroni is not designed for analysing multiple occurrences together. mcroni will analyse ONLY the first hit. Suggest manual inspection and potentially splitting the genome to analyse other occurrences separately.')
+    mcr_1_contig = blast_output[1]
+    mcr_1_start = int(blast_output[8])
+    mcr_1_end = int(blast_output[9])
+    if int(blast_output[3])==1626:
+        if mcr_1_start < mcr_1_end:
+            mcr_1_strand = '+' # On positive strand
+        else:
+            mcr_1_strand = '-' # On negative strand
+        print('\nmcr-1 start position is: base', mcr_1_start, 'on the', mcr_1_strand, 'strand', 'of contig', mcr_1_contig)
+    else:
+        print('\ERROR: sequence does not contain a full-length mcr-1!')
+        return
+    # Get mcr-1 sequence
+    contig_seq = str(contigs[mcr_1_contig].seq)
+    if mcr_1_strand=='+':
+        mcr_1_seq = contig_seq[mcr_1_start-1:mcr_1_end]
+    if mcr_1_strand=='-':
+        mcr_1_seq = sf.reverse_complement(contig_seq[mcr_1_end-1:mcr_1_start])
+
+    # POSITIVE STRAND
+    if mcr_1_strand == '+':
+        upstream_cut_position = (mcr_1_start-1) - upstream_bases # python 0-indexing
+        if upstream_cut_position < 0:
+            print('\nWARNING: the mcr-1 contig is not long enough to extract the expected upstream region.')
+            print('         --> mcroni will pad the sequence with gaps (-).')
+            length_pad = abs(upstream_cut_position)
+            mcr_1_upstream = ''.join(['-' for i in range(abs(upstream_cut_position))])+contig_seq[0:mcr_1_start-1]
+        else:
+            mcr_1_upstream = contig_seq[upstream_cut_position:mcr_1_start-1]
+
+        downstream_cut_position = mcr_1_end + downstream_bases
+        if downstream_cut_position > len(contig_seq):
+            print('\nWARNING: the mcr-1 contig is not long enough to extract the expected downstream region.')
+            print('         --> mcroni will pad the sequence with gaps (-).')
+            length_pad = downstream_cut_position - len(contig_seq)
+            mcr_1_downstream = contig_seq[(mcr_1_end):len(contig_seq)]+''.join(['-' for i in range(abs(length_pad))])
+        else:
+            mcr_1_downstream = contig_seq[(mcr_1_end):downstream_cut_position]
+
+    # NEGATIVE STRAND
+    elif mcr_1_strand == '-':
+        cut_position = mcr_1_start+threshold
+        if cut_position > len(contig_seq):
+            print('\nWARNING: the mcr-1 contig is not long enough to extract the expected upstream region.')
+            print('         --> mcroni will pad the sequence with Ns.')
+            length_pad = cut_position - len(contig_seq) - 1
+            mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:cut_position-1]+''.join(['N' for i in range(length_pad)]))
+        else:
+            mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:cut_position-1])
+    return(mcr_1_upstream+mcr_1_seq+mcr_1_downstream)
+
+
 
 def cut_upstream_region(fasta_file, threshold=76):
     '''Returns the upstream region of mcr-1 in a genome (assumes just one hit).'''
@@ -68,7 +149,7 @@ def cut_upstream_region(fasta_file, threshold=76):
             mcr_1_strand = '+' # On positive strand
         else:
             mcr_1_strand = '-' # On negative strand
-        print('\nmcr-1 start position is:', mcr_1_start, 'on the', mcr_1_strand, 'strand', 'of contig', mcr_1_contig)
+        print('\nmcr-1 start position is: base', mcr_1_start, 'on the', mcr_1_strand, 'strand', 'of contig', mcr_1_contig)
     else:
         print('\ERROR: sequence does not contain a full-length mcr-1!')
         return
@@ -179,11 +260,11 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
 
 
 # Header for output file
-output_header = ('\t').join['FILE', 'ISOLATE', 'MCR1.CONTIG', 'MCR1.START', 'MCR1.STRAND',
+output_header = ('\t').join(['FILE', 'ISOLATE', 'MCR1.CONTIG', 'MCR1.START', 'MCR1.STRAND',
                             'MCR1.VARIANT', 'MCR1.UPSTREAM.SEQUENCE',
                             'PLASMIDS.ON.MCR1.CONTIG', 'PLASMIDS.ELSEWHERE',
                             'ISAPL1.UPSTREAM.LENGTH', 'ISAPL1.UPSTREAM.STRAND',
-                            'ISAPL1.DOWNSTREAM.LENGTH', 'ISAPL1.DOWNSTREAM.STRAND']
+                            'ISAPL1.DOWNSTREAM.LENGTH', 'ISAPL1.DOWNSTREAM.STRAND'])
 
 def main():
     args = get_options()
