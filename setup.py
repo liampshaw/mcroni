@@ -14,6 +14,8 @@ setup(
     license='LICENSE',
     python_requires='>=3.6',
     packages=['mcroni'],
+    include_package_data=True,
+    package_data={'': ['data/*fa']},
     install_requires=['pandas', 'biopython', 'numpy'],
     entry_points={'console_scripts':['mcroni=mcroni.mcroni:main']},
     classifiers=[
