@@ -96,6 +96,7 @@ def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
 
         # DOWNSTREAM
         downstream_cut_position = mcr_1_end + downstream_bases
+        print('\nCutting out the region from', upstream_cut_position, '-', downstream_cut_position, 'on the positive strand.')
         if downstream_cut_position > len(contig_seq):
             print('\nWARNING: the mcr-1 contig is not long enough to extract the expected downstream region.')
             print('         --> mcroni will pad the sequence with gaps (-).')
@@ -108,7 +109,6 @@ def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
     elif mcr_1_strand == '-':
         # UPSTREAM
         upstream_cut_position = mcr_1_start + upstream_bases
-        print(upstream_cut_position)
         if upstream_cut_position > len(contig_seq):
             print('\nWARNING: the mcr-1 contig is not long enough to extract the expected upstream region.')
             print('         --> mcroni will pad the sequence with gaps (-).')
@@ -119,7 +119,8 @@ def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
 
         # DOWNSTREAM
         downstream_cut_position = mcr_1_end -  downstream_bases - 1
-        print(downstream_cut_position)
+        print('\nCutting out the region from', downstream_cut_position, '-', upstream_cut_position, 'on the negative strand.')
+)
         if downstream_cut_position < 0:
             print('\nWARNING: the mcr-1 contig is not long enough to extract the expected downstream region.')
             print('         --> mcroni will pad the sequence with gaps (-).')
