@@ -20,7 +20,7 @@ import mcroni.seqFunctions as sf # for conda
 
 
 def get_options():
-    parser = argparse.ArgumentParser(description='Analyse the local genomic context of mcr-1 including variants in the upstream promoter region.',
+    parser = argparse.ArgumentParser(description='Analyse the local genomic context of mcr-1.',
                                      prog='mcroni')
     input_group = parser.add_mutually_exclusive_group(required=True) # mutually exclusive group
     input_group.add_argument('--fasta', help='Fasta file') # either f or l, but not both
@@ -35,6 +35,8 @@ def exit_message(message):
 # a general function to cut out a section of a genome upstream_bases and downstream_bases away from a gene
 def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
     '''Cuts out the region around mcr-1.'''
+    if (upstream_bases<0 or downstream_bases<0):
+        print('\nWARNING: you specified a negative number of bases. mcroni treats negative bases as 0 (i.e. no flanking region).')
     print('\nReading in genome from file '+fasta_file+'...')
     contigs = sf.read_fasta(fasta_file)
     print('\nMaking blast database...')
@@ -250,7 +252,6 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         # get lengths of ISApl1 hits
         ISApl1_lengths = [abs(ends[i] - starts[i]) for i in range(0, len(ends))] # check +1 etc for precise length of hits. abs takes care of strand
         # get relative position to mcr-1 - could need to check circularity...although this will rarely be a problem it could conceivably happen
-        # Map greater than mcr-1 start position context to
         # Use the relative end of ISApl1 compared to mcr-1 to find out if a hit is upstream or downstream
         positive_map = {True : 'upstream', False : 'downstream'}
         ISApl1_relative_positions = [positive_map.get(loc, loc) for loc in [x<mcr_1_start for x in ends]]
