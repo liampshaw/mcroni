@@ -33,3 +33,11 @@ def test_downstream_padding_by_cut_region_works():
 def test_cut_region_complains_when_given_negative_bases():
     '''cut_region should not allow negative bases'''
     return
+
+def test_mcroni_complains_when_input_file_does_not_exist():
+    '''running with nonexistent input file should be handled gracefully'''
+    return
+
+def test_mcroni_complains_when_input_file_is_not_fasta():
+    '''running with a file that is not a fasta file is handled gracefully'''
+    return
