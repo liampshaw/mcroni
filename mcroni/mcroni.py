@@ -37,6 +37,10 @@ def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
     '''Cuts out the region around mcr-1.'''
     if (upstream_bases<0 or downstream_bases<0):
         print('\nWARNING: you specified a negative number of bases. mcroni treats negative bases as 0 (i.e. no flanking region).')
+        if upstream_bases<0:
+            upstream_bases = 0
+        if downstream_bases <0:
+            downstream_bases = 0
     print('\nReading in genome from file '+fasta_file+'...')
     contigs = sf.read_fasta(fasta_file)
     print('\nMaking blast database...')
