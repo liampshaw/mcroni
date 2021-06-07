@@ -1,0 +1,12 @@
+name: mcroni_env
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - pip
+  - biopython
+  - numpy
+  - pandas
+  - abricate
+  - minimap2
