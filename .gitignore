@@ -5,4 +5,4 @@ dist/*
 mcroni/__pycache__
 mcroni.egg-info
 *.pyc 
-mcroni/tests/fake.fa
+mcroni/tests/*.fa
