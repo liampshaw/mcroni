@@ -41,3 +41,11 @@ def test_mcroni_complains_when_input_file_does_not_exist():
 def test_mcroni_complains_when_input_file_is_not_fasta():
     '''running with a file that is not a fasta file is handled gracefully'''
     return
+
+def test_mcroni_complains_when_output_file_exists():
+    '''specifying output file which already exists gives refusal to run'''
+    return
+
+def test_using_force_flag_overwrites_output_file():
+    '''using --force flag overwrites an existing output file()'''
+    return
