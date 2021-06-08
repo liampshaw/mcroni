@@ -124,7 +124,6 @@ def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
         # DOWNSTREAM
         downstream_cut_position = mcr_1_end -  downstream_bases - 1
         print('\nCutting out the region from', downstream_cut_position, '-', upstream_cut_position, 'on the negative strand.')
-)
         if downstream_cut_position < 0:
             print('\nWARNING: the mcr-1 contig is not long enough to extract the expected downstream region.')
             print('         --> mcroni will pad the sequence with gaps (-).')
@@ -224,22 +223,34 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
 
     Returns:
         ISApl1_dict (dict)
-            Dict with keys 'upstream', 'downstream' storing the length and strand of ISApl1
+            Dict with keys 'upstream', 'downstream' storing the length, strand of ISApl1
     '''
-    # Search with minimap2 for ISApl1
-    ISApl1_dict = {'upstream' : [0, 'NA'], 'downstream' : [0, 'NA']}
-    if mcr_1_strand == '+':
-        contig_str = str(contig.seq)
-    if mcr_1_strand == '-':
-        contig_str = sf.reverse_complement(str(contig.seq))
-        mcr_1_start = len(contig_str)-mcr_1_start
-    # Need two tests for ISApl1 - upstream of mcr-1? if yes, then how much? then, downstream of mcr-1, and if yes, then how much?
+    # Parameters used in function
     upstream_ISApl1_window = 1255 # Based on 1254 in KX528699
     downstream_ISApl1_window = 3494 # Based on 3493 in KX528699
+
+    positive_map = {True : 'upstream', False : 'downstream'}
+    # if ISApl1 strand=='+' then it is right way round, if '-' then opposite way round
+    strand_map = {'+' : 'normal', '-' : 'inverted'}
+    # Gets filled if there are hits
+    ISApl1_dict = {'upstream' : [0, 'NA'], 'downstream' : [0, 'NA']}
+
+    # Converting input contig
+    if mcr_1_strand == '+':
+        contig_str = str(contig.seq)
+    if mcr_1_strand == '-': # Construct sequence so that mcr-1 is on +ve strand
+        contig_str = sf.reverse_complement(str(contig.seq))
+        mcr_1_start = len(contig_str)-mcr_1_start
+    # Write to tmp file
+    with open('tmp.fa', 'w') as f:
+        f.write('>tmp\n%s' % contig_str)
+
+    # Start positions of ISApl1 will need to be within these limits to count
+    upstream_limit = mcr_1_start-upstream_ISApl1_window
+    downstream_limit = mcr_1_start+downstream_ISApl1_window
+
     print('Searching for ISApl1...')
-    f = open('tmp.fa', 'w')
-    f.write('>tmp\n%s' % contig_str)
-    f.close()
+    # Search with minimap2 for ISApl1
     minimap_process = subprocess.Popen(['minimap2', sf.get_data('ISApl1.fa'), \
                             'tmp.fa'],
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
@@ -247,6 +258,8 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     minimap_output = re.split('\t|\n', minimap_out.decode()) # decode
     minimap_output.remove('')
     os.remove('tmp.fa') # remove file
+
+    # Process minimap output
     if minimap_output!=[]:
         # Minimap output has 18 entries. Split based on this
         minimap_results = pd.DataFrame(np.reshape(minimap_output, newshape=(int(np.floor(len(minimap_output)/18)), 18)))
@@ -258,17 +271,14 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         ISApl1_lengths = [abs(ends[i] - starts[i]) for i in range(0, len(ends))] # check +1 etc for precise length of hits. abs takes care of strand
         # get relative position to mcr-1 - could need to check circularity...although this will rarely be a problem it could conceivably happen
         # Use the relative end of ISApl1 compared to mcr-1 to find out if a hit is upstream or downstream
-        positive_map = {True : 'upstream', False : 'downstream'}
+        # N.B. We have converted the mcr_1_start position and sequence so that mcr-1 is by construction on +ve strand in tmp.fa
         ISApl1_relative_positions = [positive_map.get(loc, loc) for loc in [x<mcr_1_start for x in ends]]
 
-        # Start positions need to be within these limits to count
-        upstream_limit = mcr_1_start-upstream_ISApl1_window
-        downstream_limit = mcr_1_start+downstream_ISApl1_window
+
         ISApl1_limits = [starts[i]>upstream_limit and starts[i]<downstream_limit for i in range(0, len(starts))]
         # Loop through all instances and check if condition is met
         upstream_l = [ISApl1_relative_positions[i]=='upstream' and ISApl1_limits[i] for i in range(0, len(starts))]
-        # if ISApl1 strand=='+' then it is right way round, if '-' then opposite way round
-        strand_map = {'+' : 'normal', '-' : 'inverted'}
+
         if True in upstream_l:
             upstream_ind = upstream_l.index(True)
             ISApl1_dict['upstream'] = [ISApl1_lengths[upstream_ind],strand_map[strands[upstream_ind]]]
@@ -278,7 +288,9 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
             ISApl1_dict['downstream'] = [ISApl1_lengths[downstream_ind], strand_map[strands[downstream_ind]]]
     # return the dict
     print('\nThe summary of ISApl1 presence is:')
-    print(ISApl1_dict)
+    print('Starts:', starts)
+    print('Ends:', ends)
+    print('Lengths:', ISApl1_lengths)
     return(ISApl1_dict)
 
 
