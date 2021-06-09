@@ -33,8 +33,20 @@ def exit_message(message):
     sys.exit(1)
 
 # a general function to cut out a section of a genome upstream_bases and downstream_bases away from a gene
-def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
-    '''Cuts out the region around mcr-1.'''
+def cut_region(fasta_file, upstream_bases=1255, downstream_bases=1867):
+    '''Cuts out the region around mcr-1. Default is to cut out the expected size
+    of the full composite transposon (e.g. as found in KX528699.1)
+    Args:
+        fasta_file (str)
+            Filename of fasta
+        upstream_bases (int)
+            Number of bases upstream from *start* of mcr-1. Default=1255
+        downstream_bases (int)
+            Number of bases downstream from *end* of mcr-1. Default=1867
+    Returns:
+        region_seq (str)
+            Sequence of the requested region
+    '''
     if (upstream_bases<0 or downstream_bases<0):
         print('\nWARNING: you specified a negative number of bases. mcroni treats negative bases as 0 (i.e. no flanking region).')
         if upstream_bases<0:
@@ -84,11 +96,9 @@ def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
         mcr_1_seq = contig_seq[mcr_1_start-1:mcr_1_end]
     if mcr_1_strand=='-':
         mcr_1_seq = sf.reverse_complement(contig_seq[mcr_1_end-1:mcr_1_start])
-
     # POSITIVE STRAND
     if mcr_1_strand == '+':
         upstream_cut_position = (mcr_1_start-1) - upstream_bases # python 0-indexing
-
         # UPSTREAM
         if upstream_cut_position < 0:
             print('\nWARNING: the mcr-1 contig is not long enough to extract the expected upstream region.')
@@ -97,7 +107,6 @@ def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
             mcr_1_upstream = ''.join(['-' for i in range(abs(upstream_cut_position))])+contig_seq[0:(mcr_1_start-1)]
         else:
             mcr_1_upstream = contig_seq[upstream_cut_position:mcr_1_start-1]
-
         # DOWNSTREAM
         downstream_cut_position = mcr_1_end + downstream_bases
         print('\nCutting out the region from', upstream_cut_position, '-', downstream_cut_position, 'on the positive strand.')
@@ -108,7 +117,6 @@ def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
             mcr_1_downstream = contig_seq[(mcr_1_end):len(contig_seq)]+''.join(['-' for i in range(abs(length_pad))])
         else:
             mcr_1_downstream = contig_seq[(mcr_1_end):downstream_cut_position]
-
     # NEGATIVE STRAND
     elif mcr_1_strand == '-':
         # UPSTREAM
@@ -120,7 +128,6 @@ def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
             mcr_1_upstream = ''.join(['-' for i in range(length_pad)]) + sf.reverse_complement(contig_seq[mcr_1_start:len(contig_seq)])
         else:
             mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:upstream_cut_position])
-
         # DOWNSTREAM
         downstream_cut_position = mcr_1_end -  downstream_bases - 1
         print('\nCutting out the region from', downstream_cut_position, '-', upstream_cut_position, 'on the negative strand.')
@@ -131,8 +138,8 @@ def cut_region(fasta_file, upstream_bases=150, downstream_bases=100):
             mcr_1_downstream = sf.reverse_complement(contig_seq[0:mcr_1_end-1])+''.join(['-' for i in range(length_pad)])
         else:
             mcr_1_downstream = sf.reverse_complement(contig_seq[downstream_cut_position:mcr_1_end-1])
-
-    return(mcr_1_upstream+mcr_1_seq+mcr_1_downstream)
+    region_seq = mcr_1_upstream+mcr_1_seq+mcr_1_downstream
+    return(region_seq)
 
 
 
@@ -180,7 +187,7 @@ def cut_upstream_region(fasta_file, threshold=76):
     # Get mcr-1 variant
     contig_seq = str(contigs[mcr_1_contig].seq)
     if mcr_1_strand=='+':
-        mcr_1_seq = contig_seq[mcr_1_start-1:mcr_1_end]
+        mcr_1_seq = contig_seq[mcr_1_start-1:mcr_1_end] # Python indexing
     if mcr_1_strand=='-':
         mcr_1_seq = sf.reverse_complement(contig_seq[mcr_1_end-1:mcr_1_start])
     mcr_1_variant = sf.classify_variant(mcr_1_seq)
@@ -271,6 +278,8 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         blast_results = pd.DataFrame(np.reshape(blast_output, newshape=(int(np.floor(len(blast_output)/12)), 12)))
         starts = list(pd.to_numeric(blast_results[8])) # will need -1 for python 0-index
         ends = list(pd.to_numeric(blast_results[9])) # will need -1 for python 0-index
+        internal_starts = list(pd.to_numeric(blast_results[6])) # internal to ISApl1
+        internal_ends = list(pd.to_numeric(blast_results[7])) # internal to ISApl1
         print(list(zip(starts, ends)))
         start_before_end = [starts[i]<ends[i] for i in range(len(starts))]
         orientations = [orientation_map[x] for x in start_before_end] # get the orientation
@@ -290,9 +299,15 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
             ISApl1_dict['downstream'] = [ISApl1_lengths[downstream_ind], orientations[downstream_ind]]
         # return the dict
         print('\nThe summary of ISApl1 presence is:')
-        print('Starts:', starts)
-        print('Ends:', ends)
+        ISApl1_relative_starts = [x-mcr_1_start for x in starts]
+        ISApl1_relative_ends = [x-mcr_1_start for x in ends]
+        print('Starts:', ISApl1_relative_starts)
+        print('Ends:', ISApl1_relative_ends)
         print('Lengths:', ISApl1_lengths)
+        presences = list(zip(ISApl1_relative_starts, ISApl1_relative_ends))
+        internal_numbers = list(zip(internal_starts, internal_ends))
+        print(sorted(presences))
+        print([internal_numbers[presences.index(x)] for x in sorted(presences)])
         print(ISApl1_dict)
 
 
