@@ -212,29 +212,25 @@ def cut_upstream_region(fasta_file, threshold=76):
 
 def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     '''Analyses the upstream and downstream presence of ISApl1 using minimap2.
-
     Args:
         contig (SeqIO record)
             Record for contig containing mcr-1
         mcr_1_start (int)
             Start position of mcr-1 gene
-        mcr_1_end
-            End position of mcr-1 gene
-
+        mcr_1_strand
+            Strand of mcr-1
     Returns:
         ISApl1_dict (dict)
             Dict with keys 'upstream', 'downstream' storing the length, strand of ISApl1
     '''
     # Parameters used in function
-    upstream_ISApl1_window = 1255 # Based on 1254 in KX528699
-    downstream_ISApl1_window = 3494 # Based on 3493 in KX528699
-
+    upstream_ISApl1_window = 1264 # Based on 1254 in KX528699
+    downstream_ISApl1_window = 3503 # Based on 3493 in KX528699
     positive_map = {True : 'upstream', False : 'downstream'}
     # if ISApl1 strand=='+' then it is right way round, if '-' then opposite way round
     strand_map = {'+' : 'normal', '-' : 'inverted'}
     # Gets filled if there are hits
     ISApl1_dict = {'upstream' : [0, 'NA'], 'downstream' : [0, 'NA']}
-
     # Converting input contig
     if mcr_1_strand == '+':
         contig_str = str(contig.seq)
@@ -244,11 +240,9 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     # Write to tmp file
     with open('tmp.fa', 'w') as f:
         f.write('>tmp\n%s' % contig_str)
-
     # Start positions of ISApl1 will need to be within these limits to count
     upstream_limit = mcr_1_start-upstream_ISApl1_window
     downstream_limit = mcr_1_start+downstream_ISApl1_window
-
     print('Searching for ISApl1...')
     # Search with minimap2 for ISApl1
     minimap_process = subprocess.Popen(['minimap2', sf.get_data('ISApl1.fa'), \
@@ -258,7 +252,6 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     minimap_output = re.split('\t|\n', minimap_out.decode()) # decode
     minimap_output.remove('')
     os.remove('tmp.fa') # remove file
-
     # Process minimap output
     if minimap_output!=[]:
         # Minimap output has 18 entries. Split based on this
@@ -273,12 +266,9 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         # Use the relative end of ISApl1 compared to mcr-1 to find out if a hit is upstream or downstream
         # N.B. We have converted the mcr_1_start position and sequence so that mcr-1 is by construction on +ve strand in tmp.fa
         ISApl1_relative_positions = [positive_map.get(loc, loc) for loc in [x<mcr_1_start for x in ends]]
-
-
         ISApl1_limits = [starts[i]>upstream_limit and starts[i]<downstream_limit for i in range(0, len(starts))]
         # Loop through all instances and check if condition is met
         upstream_l = [ISApl1_relative_positions[i]=='upstream' and ISApl1_limits[i] for i in range(0, len(starts))]
-
         if True in upstream_l:
             upstream_ind = upstream_l.index(True)
             ISApl1_dict['upstream'] = [ISApl1_lengths[upstream_ind],strand_map[strands[upstream_ind]]]
