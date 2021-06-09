@@ -317,6 +317,9 @@ def main():
     with open(args.output, 'w') as output_file:
         output_file.write(output_header+'\n')
         for fasta_file in fastas:
+            if not os.path.exists(fasta_file):
+                print('\nERROR: input fasta does not exist:', fasta_file)
+                return
             fasta_name = re.sub('\\..*', '', re.sub('.*\\/', '', fasta_file))
             output = cut_upstream_region(fasta_file)
             if output!=None:
