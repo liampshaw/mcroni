@@ -223,65 +223,77 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         ISApl1_dict (dict)
             Dict with keys 'upstream', 'downstream' storing the length, strand of ISApl1
     '''
-    # Parameters used in function
-    upstream_ISApl1_window = 1264 # Based on 1254 in KX528699
-    downstream_ISApl1_window = 3503 # Based on 3493 in KX528699
-    positive_map = {True : 'upstream', False : 'downstream'}
-    # if ISApl1 strand=='+' then it is right way round, if '-' then opposite way round
-    strand_map = {'+' : 'normal', '-' : 'inverted'}
-    # Gets filled if there are hits
-    ISApl1_dict = {'upstream' : [0, 'NA'], 'downstream' : [0, 'NA']}
     # Converting input contig
     if mcr_1_strand == '+':
         contig_str = str(contig.seq)
-    if mcr_1_strand == '-': # Construct sequence so that mcr-1 is on +ve strand
+    if mcr_1_strand == '-': # We construct the sequence so that mcr-1 is on +ve strand
         contig_str = sf.reverse_complement(str(contig.seq))
         mcr_1_start = len(contig_str)-mcr_1_start
     # Write to tmp file
     with open('tmp.fa', 'w') as f:
         f.write('>tmp\n%s' % contig_str)
+    # Parameters used in function
+    upstream_ISApl1_window = 1264 # Based on 1254 in KX528699
+    downstream_ISApl1_window = 3503 # Based on 3493 in KX528699
+    positive_map = {True : 'upstream', False : 'downstream'}
+    # if ISApl1 strand=='+' then it is right way round, if '-' then opposite way round
+    #strand_map = {'+' : 'normal', '-' : 'inverted'}
+    orientation_map = {True: 'normal', False: 'inverted'}
+    # Gets filled if there are hits
+    ISApl1_dict = {'upstream' : [0, 'NA'], 'downstream' : [0, 'NA']}
     # Start positions of ISApl1 will need to be within these limits to count
     upstream_limit = mcr_1_start-upstream_ISApl1_window
     downstream_limit = mcr_1_start+downstream_ISApl1_window
     print('Searching for ISApl1...')
-    # Search with minimap2 for ISApl1
-    minimap_process = subprocess.Popen(['minimap2', sf.get_data('ISApl1.fa'), \
-                            'tmp.fa'],
+    # Search with blast for ISApl1
+    print('\nMaking blast database...')
+    subprocess.check_call(['makeblastdb', '-in', 'tmp.fa', '-dbtype', 'nucl'],\
+        stderr=subprocess.DEVNULL,\
+        stdout=open(os.devnull, 'w'))
+    print('\nSearching for ISApl1...')
+    blast_process = subprocess.Popen(['blastn', '-db', 'tmp.fa', \
+                            '-query', sf.get_data('ISApl1.fa'), \
+                            '-outfmt', '6'],
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    minimap_out, _ = minimap_process.communicate() # Read the output from stdout
-    minimap_output = re.split('\t|\n', minimap_out.decode()) # decode
-    minimap_output.remove('')
-    os.remove('tmp.fa') # remove file
-    # Process minimap output
-    if minimap_output!=[]:
-        # Minimap output has 18 entries. Split based on this
-        minimap_results = pd.DataFrame(np.reshape(minimap_output, newshape=(int(np.floor(len(minimap_output)/18)), 18)))
-        starts = list(pd.to_numeric(minimap_results[2]))
-        ends = list(pd.to_numeric(minimap_results[3]))
-        strands = list(minimap_results[4])
-        # name seq_length start end strand
-        # get lengths of ISApl1 hits
-        ISApl1_lengths = [abs(ends[i] - starts[i]) for i in range(0, len(ends))] # check +1 etc for precise length of hits. abs takes care of strand
-        # get relative position to mcr-1 - could need to check circularity...although this will rarely be a problem it could conceivably happen
-        # Use the relative end of ISApl1 compared to mcr-1 to find out if a hit is upstream or downstream
-        # N.B. We have converted the mcr_1_start position and sequence so that mcr-1 is by construction on +ve strand in tmp.fa
+    blast_out, _ = blast_process.communicate() # Read the output from stdout
+    blast_output = re.split('\n|\t',blast_out.decode()) # Decode
+    print('\nRemoving temporary blast databases...')
+    os.remove('tmp.fa'+'.nin')
+    os.remove('tmp.fa'+'.nhr')
+    os.remove('tmp.fa'+'.nsq')
+    print(blast_output)
+    # Process blast output
+    if blast_output == ['']:
+        print('\nNo blast hit for ISApl1.')
+        return
+    else:
+        blast_output.pop(-1) # remove empty trailing entry
+        blast_results = pd.DataFrame(np.reshape(blast_output, newshape=(int(np.floor(len(blast_output)/12)), 12)))
+        starts = list(pd.to_numeric(blast_results[8])) # will need -1 for python 0-index
+        ends = list(pd.to_numeric(blast_results[9])) # will need -1 for python 0-index
+        print(list(zip(starts, ends)))
+        start_before_end = [starts[i]<ends[i] for i in range(len(starts))]
+        orientations = [orientation_map[x] for x in start_before_end] # get the orientation
+        print(orientations)
+        ISApl1_lengths = [abs(ends[i] - starts[i])+1 for i in range(0, len(ends))] # +1 because e.g. start at 1 finish at 3 means length=3
+        print(ISApl1_lengths)
         ISApl1_relative_positions = [positive_map.get(loc, loc) for loc in [x<mcr_1_start for x in ends]]
         ISApl1_limits = [starts[i]>upstream_limit and starts[i]<downstream_limit for i in range(0, len(starts))]
         # Loop through all instances and check if condition is met
         upstream_l = [ISApl1_relative_positions[i]=='upstream' and ISApl1_limits[i] for i in range(0, len(starts))]
         if True in upstream_l:
             upstream_ind = upstream_l.index(True)
-            ISApl1_dict['upstream'] = [ISApl1_lengths[upstream_ind],strand_map[strands[upstream_ind]]]
+            ISApl1_dict['upstream'] = [ISApl1_lengths[upstream_ind],orientations[upstream_ind]]
         downstream_l = [ISApl1_relative_positions[i]=='downstream' and ISApl1_limits[i] for i in range(0, len(starts))]
         if True in downstream_l:
             downstream_ind = downstream_l.index(True)
-            ISApl1_dict['downstream'] = [ISApl1_lengths[downstream_ind], strand_map[strands[downstream_ind]]]
-    # return the dict
-    print('\nThe summary of ISApl1 presence is:')
-    print('Starts:', starts)
-    print('Ends:', ends)
-    print('Lengths:', ISApl1_lengths)
-    return(ISApl1_dict)
+            ISApl1_dict['downstream'] = [ISApl1_lengths[downstream_ind], orientations[downstream_ind]]
+        # return the dict
+        print('\nThe summary of ISApl1 presence is:')
+        print('Starts:', starts)
+        print('Ends:', ends)
+        print('Lengths:', ISApl1_lengths)
+        print(ISApl1_dict)
 
 
 # Header for output file
