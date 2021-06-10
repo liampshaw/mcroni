@@ -28,7 +28,6 @@ where `list-of-files.txt` has the form
 ```
 path/to/genome1.fa
 path/to/genome2.fa
-...
 ```
 
 ## Background
