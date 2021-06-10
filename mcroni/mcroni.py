@@ -25,7 +25,7 @@ def get_options():
     input_group = parser.add_mutually_exclusive_group(required=True) # mutually exclusive group
     input_group.add_argument('--fasta', help='Fasta file') # either f or l, but not both
     input_group.add_argument('--filelist', help='Alternatively: a list of fasta files')
-    parser.add_argument('--output', help='Output file', required=True)
+    parser.add_argument('--output', help='Output prefix', required=True)
     return parser.parse_args()
 
 def exit_message(message):
@@ -96,6 +96,7 @@ def cut_region(fasta_file, upstream_bases=1255, downstream_bases=1867):
         mcr_1_seq = contig_seq[mcr_1_start-1:mcr_1_end]
     if mcr_1_strand=='-':
         mcr_1_seq = sf.reverse_complement(contig_seq[mcr_1_end-1:mcr_1_start])
+    mcr_1_variant = sf.classify_variant(mcr_1_seq) # classify variant
     # POSITIVE STRAND
     if mcr_1_strand == '+':
         upstream_cut_position = (mcr_1_start-1) - upstream_bases # python 0-indexing
@@ -139,86 +140,19 @@ def cut_region(fasta_file, upstream_bases=1255, downstream_bases=1867):
         else:
             mcr_1_downstream = sf.reverse_complement(contig_seq[downstream_cut_position:mcr_1_end-1])
     region_seq = mcr_1_upstream+mcr_1_seq+mcr_1_downstream
-    return(region_seq)
+    return([mcr_1_contig, mcr_1_variant, mcr_1_start, mcr_1_strand, region_seq])
 
-
-
-def cut_upstream_region(fasta_file, threshold=76):
-    '''Returns the upstream region of mcr-1 in a genome (assumes just one hit).'''
-    print('\nReading in genome from file '+fasta_file+'...')
-    contigs = sf.read_fasta(fasta_file)
-    print('\nMaking blast database...')
-    subprocess.check_call(['makeblastdb', '-in', fasta_file, '-dbtype', 'nucl'],\
-        stderr=subprocess.DEVNULL,\
-        stdout=open(os.devnull, 'w'))
-    print('\nSearching for mcr-1...')
-    blast_process = subprocess.Popen(['blastn', '-db', fasta_file, \
-                            '-query', sf.get_data('mcr1.fa'), \
-                            '-outfmt', '6'],
-                            stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    blast_out, _ = blast_process.communicate() # Read the output from stdout
-    blast_output = re.split('\n|\t',blast_out.decode()) # Decode
-    print('\nRemoving temporary blast databases...')
-    os.remove(fasta_file+'.nin')
-    os.remove(fasta_file+'.nhr')
-    os.remove(fasta_file+'.nsq')
-
-    # Looking through to cut out upstream region
-    if blast_output == ['']:
-        print('\nNo blast hit for mcr-1!')
-        return
-    elif len(blast_output)>13: # should be 12 entries + empty 13th entry for one hit, so more implies >1 hit
-        blast_output.pop(-1) # remove empty last entry
-        n_hits = int(len(blast_output)/12)
-        print('\nWARNING: blast found', n_hits, 'occurrences of mcr-1  in this genome (expected: one hit). This may be biologically interesting but mcroni is not designed for analysing multiple occurrences together. mcroni will analyse ONLY the first hit. Suggest manual inspection and potentially splitting the genome to analyse other occurrences separately.')
-    mcr_1_contig = blast_output[1]
-    mcr_1_start = int(blast_output[8])
-    mcr_1_end = int(blast_output[9])
-    if int(blast_output[3])==1626:
-        if mcr_1_start < mcr_1_end:
-            mcr_1_strand = '+' # On positive strand
-        else:
-            mcr_1_strand = '-' # On negative strand
-        print('\nmcr-1 start position is: base', mcr_1_start, 'on the', mcr_1_strand, 'strand', 'of contig', mcr_1_contig)
-    else:
-        print('\ERROR: sequence does not contain a full-length mcr-1!')
-        return
-
-    # Get mcr-1 variant
-    contig_seq = str(contigs[mcr_1_contig].seq)
-    if mcr_1_strand=='+':
-        mcr_1_seq = contig_seq[mcr_1_start-1:mcr_1_end] # Python indexing
-    if mcr_1_strand=='-':
-        mcr_1_seq = sf.reverse_complement(contig_seq[mcr_1_end-1:mcr_1_start])
-    mcr_1_variant = sf.classify_variant(mcr_1_seq)
-
-    # Use this information to extract the 75bp upstream of mcr-1
-    if mcr_1_strand == '+':
-        cut_position = mcr_1_start-threshold
-        if cut_position < 0:
-            print('\nWARNING: the mcr-1 contig is not long enough to extract the expected promoter region.')
-            print('nmcroni will pad the sequence with Ns.')
-            length_pad = abs(cut_position)
-            mcr_1_upstream = ''.join(['N' for i in range(abs(cut_position))])+contig_seq[0:mcr_1_start-1]
-        else:
-            mcr_1_upstream = contig_seq[cut_position:mcr_1_start-1]
-
-
-    elif mcr_1_strand == '-':
-        cut_position = mcr_1_start+threshold
-        if cut_position > len(contig_seq):
-            print('\nWARNING: the mcr-1 contig is not long enough to extract the requested upstream region.')
-            print('\nmcroni will pad the sequence with Ns.')
-            length_pad = cut_position - len(contig_seq) - 1
-            mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:cut_position-1]+''.join(['N' for i in range(length_pad)]))
-        else:
-            mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:cut_position-1])
-    print('\nThe upstream region of mcr-1 is:')
-    print(mcr_1_upstream)
-    return([mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream])
+def classify_components(region_seq):
+    '''Classify the presence of the various components of the mcr-1 composite transposon.
+    Args:
+        region_seq (str)
+            Sequence of the extracted region, such that mcr-1 is on positive strand.
+    Returns:
+        '''
+    return
 
 def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
-    '''Analyses the upstream and downstream presence of ISApl1 using minimap2.
+    '''Analyses the upstream and downstream presence of ISApl1.
     Args:
         contig (SeqIO record)
             Record for contig containing mcr-1
@@ -306,9 +240,10 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         print('Lengths:', ISApl1_lengths)
         presences = list(zip(ISApl1_relative_starts, ISApl1_relative_ends))
         internal_numbers = list(zip(internal_starts, internal_ends))
-        print(sorted(presences))
-        print([internal_numbers[presences.index(x)] for x in sorted(presences)])
+        sorted_isapl1_presences = sorted(presences)
+        sorted_isapl1_internal = [internal_numbers[presences.index(x)] for x in sorted(presences)]
         print(ISApl1_dict)
+        return([sorted_isapl1_presences, sorted_isapl1_internal])
 
 
 # Header for output file
@@ -330,9 +265,10 @@ def main():
     else:
         fastas.append(str(args.fasta))
 
-
-    with open(args.output, 'w') as output_file:
-        output_file.write(output_header+'\n')
+    output_table_summary = args.output+'_table.tsv'
+    output_fasta = args.output+'_sequence.fa'
+    with open(output_table_summary, 'w') as output_file:
+        output_file.write(output_header+'\n') # Write the header of table
         for fasta_file in fastas:
             if not os.path.exists(fasta_file):
                 print('\nERROR: input fasta does not exist:', fasta_file)
