@@ -107,7 +107,6 @@ def plasmid_replicons(fasta_file, contig_name, database='plasmidfinder'):
 
     N.B. Uses default thresholds of abricate (--minid 80, --mincov 80).
     '''
-    print('Finding plasmid replicons using abricate...')
     abricate_command = ['abricate', '--db', database, fasta_file]
     abricate_process = subprocess.Popen(abricate_command, stdout = subprocess.PIPE, stderr = subprocess.PIPE) # Runs abricate
     abricate_out, _ = abricate_process.communicate() # Read the output from stdout
