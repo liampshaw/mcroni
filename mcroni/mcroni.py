@@ -283,8 +283,8 @@ def main():
                 # Write to file
                 output_file.write('%s\t%s\t%s\t%s\t%s\t%s' % (fasta_file, fasta_name, mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant))
                 # Write sequence too
-                with open(output_fasta, 'a') as output_fasta:
-                    output_fasta.write('>%s %s %s\n%s\n' % (fasta_name, mcr_1_contig, mcr_1_variant, region_seq))
+                with open(output_fasta, 'a') as output_fasta_file:
+                    output_fasta_file.write('>%s %s %s\n%s\n' % (fasta_name, mcr_1_contig, mcr_1_variant, region_seq))
                 # Get plasmid replicons too
                 plasmids = sf.plasmid_replicons(fasta_file, mcr_1_contig)
                 # Write to file
