@@ -239,7 +239,7 @@ def classify_ISApl1_presence(region_seq, mcr_1_relative_start):
         sorted_isapl1_internal = [internal_numbers[presences.index(x)] for x in sorted(presences)]
         print(ISApl1_dict)
         ISApl1_summary_list = list(zip(sorted_isapl1_presences, sorted_isapl1_internal))
-        if [[x[0]<0 for x in y] for y in a].count([True, False])==1:
+        if [[x[0]<0 for x in y] for y in ISApl1_summary_list].count([True, False])==1:
             ISApl1_dict['upstream'] = ISApl1_summary_list[0]
             if len(ISApl1_summary_list)>1:
                 ISApl1_dict['downstream'] = ISApl1_summary_list[1]
