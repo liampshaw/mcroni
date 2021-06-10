@@ -12,6 +12,7 @@ import argparse
 import pandas as pd
 import numpy as np
 import math
+import logging
 
 import mcroni.seqFunctions as sf # for conda
 # for local usage
@@ -26,6 +27,8 @@ def get_options():
     input_group.add_argument('--fasta', help='Fasta file') # either f or l, but not both
     input_group.add_argument('--filelist', help='Alternatively: a list of fasta files')
     parser.add_argument('--output', help='Output prefix', required=True)
+    parser.add_argument("-v", "--verbose", help="verbose output",
+                    action="store_true")
     return parser.parse_args()
 
 def exit_message(message):
@@ -48,36 +51,36 @@ def cut_region(fasta_file, upstream_bases=1255, downstream_bases=1867):
             Sequence of the requested region
     '''
     if (upstream_bases<0 or downstream_bases<0):
-        print('\nWARNING: you specified a negative number of bases. mcroni treats negative bases as 0 (i.e. no flanking region).')
+        logging.debug('\nWARNING: you specified a negative number of bases. mcroni treats negative bases as 0 (i.e. no flanking region).')
         if upstream_bases<0:
             upstream_bases = 0
         if downstream_bases <0:
             downstream_bases = 0
-    print('\nReading in genome from file '+fasta_file+'...')
+    logging.debug('\nReading in genome from file '+fasta_file+'...')
     contigs = sf.read_fasta(fasta_file)
-    print('\nMaking blast database...')
+    logging.debug('\nMaking blast database...')
     subprocess.check_call(['makeblastdb', '-in', fasta_file, '-dbtype', 'nucl'],\
         stderr=subprocess.DEVNULL,\
         stdout=open(os.devnull, 'w'))
-    print('\nSearching for mcr-1...')
+    logging.debug('\nSearching for mcr-1...')
     blast_process = subprocess.Popen(['blastn', '-db', fasta_file, \
                             '-query', sf.get_data('mcr1.fa'), \
                             '-outfmt', '6'],
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     blast_out, _ = blast_process.communicate() # Read the output from stdout
     blast_output = re.split('\n|\t',blast_out.decode()) # Decode
-    print('\nRemoving temporary blast databases...')
+    logging.debug('\nRemoving temporary blast databases...')
     os.remove(fasta_file+'.nin')
     os.remove(fasta_file+'.nhr')
     os.remove(fasta_file+'.nsq')
     # Looking through to cut out upstream region
     if blast_output == ['']:
-        print('\nNo blast hit for mcr-1!')
+        logging.debug('\nNo blast hit for mcr-1!')
         return
     elif len(blast_output)>13: # should be 12 entries + empty 13th entry for one hit, so more implies >1 hit
         blast_output.pop(-1) # remove empty last entry
         n_hits = int(len(blast_output)/12)
-        print('\nWARNING: blast found', n_hits, 'occurrences of mcr-1  in this genome (expected: one hit). This may be biologically interesting but mcroni is not designed for analysing multiple occurrences together. mcroni will analyse ONLY the first hit. Suggest manual inspection and potentially splitting the genome to analyse other occurrences separately.')
+        logging.debug('\nWARNING: blast found', n_hits, 'occurrences of mcr-1  in this genome (expected: one hit). This may be biologically interesting but mcroni is not designed for analysing multiple occurrences together. mcroni will analyse ONLY the first hit. Suggest manual inspection and potentially splitting the genome to analyse other occurrences separately.')
     mcr_1_contig = blast_output[1]
     mcr_1_start = int(blast_output[8]) # note that these are base positions so 1-indexed
     mcr_1_end = int(blast_output[9]) # note that these are base positions so 1-indexed
@@ -86,9 +89,9 @@ def cut_region(fasta_file, upstream_bases=1255, downstream_bases=1867):
             mcr_1_strand = '+' # On positive strand
         else:
             mcr_1_strand = '-' # On negative strand
-        print('\nmcr-1 start position is: base', mcr_1_start, 'on the', mcr_1_strand, 'strand', 'of contig', mcr_1_contig)
+        logging.debug('\nmcr-1 start position is: base', mcr_1_start, 'on the', mcr_1_strand, 'strand', 'of contig', mcr_1_contig)
     else:
-        print('\ERROR: sequence does not contain a full-length mcr-1!')
+        logging.debug('\ERROR: sequence does not contain a full-length mcr-1!')
         return
     # Get mcr-1 sequence
     contig_seq = str(contigs[mcr_1_contig].seq)
@@ -102,18 +105,18 @@ def cut_region(fasta_file, upstream_bases=1255, downstream_bases=1867):
         upstream_cut_position = (mcr_1_start-1) - upstream_bases # python 0-indexing
         # UPSTREAM
         if upstream_cut_position < 0:
-            print('\nWARNING: the mcr-1 contig is not long enough to extract the expected upstream region.')
-            print('         --> mcroni will pad the sequence with gaps (-).')
+            logging.debug('\nWARNING: the mcr-1 contig is not long enough to extract the expected upstream region.')
+            logging.debug('         --> mcroni will pad the sequence with gaps (-).')
             length_pad = abs(upstream_cut_position)
             mcr_1_upstream = ''.join(['-' for i in range(abs(upstream_cut_position))])+contig_seq[0:(mcr_1_start-1)]
         else:
             mcr_1_upstream = contig_seq[upstream_cut_position:mcr_1_start-1]
         # DOWNSTREAM
         downstream_cut_position = mcr_1_end + downstream_bases
-        print('\nCutting out the region from', upstream_cut_position, '-', downstream_cut_position, 'on the positive strand.')
+        logging.debug('\nCutting out the region from', upstream_cut_position, '-', downstream_cut_position, 'on the positive strand.')
         if downstream_cut_position > len(contig_seq):
-            print('\nWARNING: the mcr-1 contig is not long enough to extract the expected downstream region.')
-            print('         --> mcroni will pad the sequence with gaps (-).')
+            logging.debug('\nWARNING: the mcr-1 contig is not long enough to extract the expected downstream region.')
+            logging.debug('         --> mcroni will pad the sequence with gaps (-).')
             length_pad = downstream_cut_position - len(contig_seq)
             mcr_1_downstream = contig_seq[(mcr_1_end):len(contig_seq)]+''.join(['-' for i in range(abs(length_pad))])
         else:
@@ -123,18 +126,18 @@ def cut_region(fasta_file, upstream_bases=1255, downstream_bases=1867):
         # UPSTREAM
         upstream_cut_position = mcr_1_start + upstream_bases
         if upstream_cut_position > len(contig_seq):
-            print('\nWARNING: the mcr-1 contig is not long enough to extract the expected upstream region.')
-            print('         --> mcroni will pad the sequence with gaps (-).')
+            logging.debug('\nWARNING: the mcr-1 contig is not long enough to extract the expected upstream region.')
+            logging.debug('         --> mcroni will pad the sequence with gaps (-).')
             length_pad = upstream_cut_position - len(contig_seq)
             mcr_1_upstream = ''.join(['-' for i in range(length_pad)]) + sf.reverse_complement(contig_seq[mcr_1_start:len(contig_seq)])
         else:
             mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:upstream_cut_position])
         # DOWNSTREAM
         downstream_cut_position = mcr_1_end -  downstream_bases - 1
-        print('\nCutting out the region from', downstream_cut_position, '-', upstream_cut_position, 'on the negative strand.')
+        logging.debug('\nCutting out the region from', downstream_cut_position, '-', upstream_cut_position, 'on the negative strand.')
         if downstream_cut_position < 0:
-            print('\nWARNING: the mcr-1 contig is not long enough to extract the expected downstream region.')
-            print('         --> mcroni will pad the sequence with gaps (-).')
+            logging.debug('\nWARNING: the mcr-1 contig is not long enough to extract the expected downstream region.')
+            logging.debug('         --> mcroni will pad the sequence with gaps (-).')
             length_pad = abs(downstream_cut_position)
             mcr_1_downstream = sf.reverse_complement(contig_seq[0:mcr_1_end-1])+''.join(['-' for i in range(length_pad)])
         else:
@@ -179,27 +182,27 @@ def classify_ISApl1_presence(region_seq, mcr_1_relative_start):
     # Start positions of ISApl1 will need to be within these limits to count
     upstream_limit = mcr_1_relative_start-upstream_ISApl1_window
     downstream_limit = mcr_1_relative_start+downstream_ISApl1_window
-    print('Searching for ISApl1...')
+    logging.debug('Searching for ISApl1...')
     # Search with blast for ISApl1
-    print('\nMaking blast database...')
+    logging.debug('\nMaking blast database...')
     subprocess.check_call(['makeblastdb', '-in', 'tmp.fa', '-dbtype', 'nucl'],\
         stderr=subprocess.DEVNULL,\
         stdout=open(os.devnull, 'w'))
-    print('\nSearching for ISApl1...')
+    logging.debug('\nSearching for ISApl1...')
     blast_process = subprocess.Popen(['blastn', '-db', 'tmp.fa', \
                             '-query', sf.get_data('ISApl1.fa'), \
                             '-outfmt', '6'],
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     blast_out, _ = blast_process.communicate() # Read the output from stdout
     blast_output = re.split('\n|\t',blast_out.decode()) # Decode
-    print('\nRemoving temporary blast databases...')
+    logging.debug('\nRemoving temporary blast databases...')
     os.remove('tmp.fa'+'.nin')
     os.remove('tmp.fa'+'.nhr')
     os.remove('tmp.fa'+'.nsq')
-    print(blast_output)
+    logging.debug(blast_output)
     # Process blast output
     if blast_output == ['']:
-        print('\nNo blast hit for ISApl1.')
+        logging.debug('\nNo blast hit for ISApl1.')
         return(ISApl1_dict)
     else:
         blast_output.pop(-1) # remove empty trailing entry
@@ -208,12 +211,12 @@ def classify_ISApl1_presence(region_seq, mcr_1_relative_start):
         ends = list(pd.to_numeric(blast_results[9])) # will need -1 for python 0-index
         internal_starts = list(pd.to_numeric(blast_results[6])) # internal to ISApl1
         internal_ends = list(pd.to_numeric(blast_results[7])) # internal to ISApl1
-        print(list(zip(starts, ends)))
+        logging.debug(list(zip(starts, ends)))
         start_before_end = [starts[i]<ends[i] for i in range(len(starts))]
         orientations = [orientation_map[x] for x in start_before_end] # get the orientation
-        print(orientations)
+        logging.debug(orientations)
         ISApl1_lengths = [abs(ends[i] - starts[i])+1 for i in range(0, len(ends))] # +1 because e.g. start at 1 finish at 3 means length=3
-        print(ISApl1_lengths)
+        logging.debug(ISApl1_lengths)
         ISApl1_relative_positions = [positive_map.get(loc, loc) for loc in [x<mcr_1_relative_start for x in ends]]
         ISApl1_limits = [starts[i]>upstream_limit and starts[i]<downstream_limit for i in range(0, len(starts))]
         # Loop through all instances and check if condition is met
@@ -226,18 +229,18 @@ def classify_ISApl1_presence(region_seq, mcr_1_relative_start):
             downstream_ind = downstream_l.index(True)
             ISApl1_dict['downstream'] = [ISApl1_lengths[downstream_ind], orientations[downstream_ind]]
         # return the dict
-        print('\nThe summary of ISApl1 presence is:')
+        logging.debug('\nThe summary of ISApl1 presence is:')
         ISApl1_relative_starts = [x-mcr_1_relative_start for x in starts]
         ISApl1_relative_ends = [x-mcr_1_relative_start for x in ends]
-        print('Starts:', ISApl1_relative_starts)
-        print('Ends:', ISApl1_relative_ends)
-        print('Lengths:', ISApl1_lengths)
+        logging.debug('Starts:', ISApl1_relative_starts)
+        logging.debug('Ends:', ISApl1_relative_ends)
+        logging.debug('Lengths:', ISApl1_lengths)
         presences = list(zip(ISApl1_relative_starts, ISApl1_relative_ends))
-        print(presences)
+        logging.debug(presences)
         internal_numbers = list(zip(internal_starts, internal_ends))
         sorted_isapl1_presences = sorted(presences)
         sorted_isapl1_internal = [internal_numbers[presences.index(x)] for x in sorted(presences)]
-        print(ISApl1_dict)
+        logging.debug(ISApl1_dict)
         ISApl1_summary_list = list(zip(sorted_isapl1_presences, sorted_isapl1_internal))
         if [[x[0]<0 for x in y] for y in ISApl1_summary_list].count([True, False])==1:
             ISApl1_dict['upstream'] = ISApl1_summary_list[0]
@@ -259,7 +262,8 @@ output_header = ('\t').join(['FILE', 'ISOLATE', 'MCR1.CONTIG',
 
 def main():
     args = get_options()
-    print(args)
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
     fastas = []
     if args.filelist is not None:
         with open(args.filelist, 'r') as f:
@@ -274,7 +278,7 @@ def main():
         output_file.write(output_header+'\n') # Write the header of table
         for fasta_file in fastas:
             if not os.path.exists(fasta_file):
-                print('\nERROR: input fasta does not exist:', fasta_file)
+                logging.debug('\nERROR: input fasta does not exist:', fasta_file)
                 return
             fasta_name = re.sub('\\..*', '', re.sub('.*\\/', '', fasta_file))
             output = cut_region(fasta_file)
