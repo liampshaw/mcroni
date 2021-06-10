@@ -9,4 +9,3 @@ dependencies:
   - numpy
   - pandas
   - abricate
-  - minimap2
