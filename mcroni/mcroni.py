@@ -174,7 +174,8 @@ def classify_ISApl1_presence(region_seq, mcr_1_relative_start):
     #strand_map = {'+' : 'normal', '-' : 'inverted'}
     orientation_map = {True: 'normal', False: 'inverted'}
     # Gets filled if there are hits
-    ISApl1_dict = {'upstream' : [0, 'NA'], 'downstream' : [0, 'NA']}
+    ISApl1_dict = {'upstream': [('NA', 'NA'), ('NA', 'NA')],
+                    'downstream': [('NA', 'NA'), ('NA', 'NA')]}
     # Start positions of ISApl1 will need to be within these limits to count
     upstream_limit = mcr_1_relative_start-upstream_ISApl1_window
     downstream_limit = mcr_1_relative_start+downstream_ISApl1_window
@@ -199,7 +200,7 @@ def classify_ISApl1_presence(region_seq, mcr_1_relative_start):
     # Process blast output
     if blast_output == ['']:
         print('\nNo blast hit for ISApl1.')
-        return
+        return(ISApl1_dict)
     else:
         blast_output.pop(-1) # remove empty trailing entry
         blast_results = pd.DataFrame(np.reshape(blast_output, newshape=(int(np.floor(len(blast_output)/12)), 12)))
@@ -232,20 +233,29 @@ def classify_ISApl1_presence(region_seq, mcr_1_relative_start):
         print('Ends:', ISApl1_relative_ends)
         print('Lengths:', ISApl1_lengths)
         presences = list(zip(ISApl1_relative_starts, ISApl1_relative_ends))
+        print(presences)
         internal_numbers = list(zip(internal_starts, internal_ends))
         sorted_isapl1_presences = sorted(presences)
         sorted_isapl1_internal = [internal_numbers[presences.index(x)] for x in sorted(presences)]
         print(ISApl1_dict)
-        return([sorted_isapl1_presences, sorted_isapl1_internal])
-        # Should be a 
+        ISApl1_summary_list = list(zip(sorted_isapl1_presences, sorted_isapl1_internal))
+        if [[x[0]<0 for x in y] for y in a].count([True, False])==1:
+            ISApl1_dict['upstream'] = ISApl1_summary_list[0]
+            if len(ISApl1_summary_list)>1:
+                ISApl1_dict['downstream'] = ISApl1_summary_list[1]
+        else:
+            ISApl1_dict['downstream'] = ISApl1_summary_list[0]
+        return(ISApl1_dict)
+        # Should be a
 
 
 # Header for output file
-output_header = ('\t').join(['FILE', 'ISOLATE', 'MCR1.CONTIG', 'MCR1.START', 'MCR1.STRAND',
-                            'MCR1.VARIANT', 'MCR1.UPSTREAM.SEQUENCE',
-                            'PLASMIDS.ON.MCR1.CONTIG', 'PLASMIDS.ELSEWHERE',
-                            'ISAPL1.UPSTREAM.LENGTH', 'ISAPL1.UPSTREAM.STRAND',
-                            'ISAPL1.DOWNSTREAM.LENGTH', 'ISAPL1.DOWNSTREAM.STRAND'])
+output_header = ('\t').join(['FILE', 'ISOLATE', 'MCR1.CONTIG',
+                            'MCR1.START', 'MCR1.STRAND','MCR1.VARIANT', 'PLASMIDS.ON.MCR1.CONTIG', 'PLASMIDS.ELSEWHERE',
+                            'ISAPL1.UPSTREAM.REL.START', 'ISAPL1.UPSTREAM.REL.END',
+                            'ISAPL1.UPSTREAM.INTERNAL.START', 'ISAPL1.UPSTREAM.INTERNAL.END',
+                            'ISAPL1.DOWNSTREAM.REL.START', 'ISAPL1.DOWNSTREAM.REL.END',
+                            'ISAPL1.DOWNSTREAM.INTERNAL.START', 'ISAPL1.DOWNSTREAM.INTERNAL.END',])
 
 def main():
     args = get_options()
@@ -258,7 +268,6 @@ def main():
                 fastas.append(fasta_file)
     else:
         fastas.append(str(args.fasta))
-
     output_table_summary = args.output+'_table.tsv'
     output_fasta = args.output+'_sequence.fa'
     with open(output_table_summary, 'w') as output_file:
@@ -268,23 +277,25 @@ def main():
                 print('\nERROR: input fasta does not exist:', fasta_file)
                 return
             fasta_name = re.sub('\\..*', '', re.sub('.*\\/', '', fasta_file))
-            output = cut_upstream_region(fasta_file)
+            output = cut_region(fasta_file)
             if output!=None:
-                mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream = output[0], output[1], output[2], output[3], output[4]
+                mcr_1_contig, mcr_1_variant, mcr_1_start, mcr_1_strand, mcr_1_relative_start, region_seq = output[0], output[1], output[2], output[3], output[4], output[5]
                 # Write to file
-                output_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s' % (fasta_file, fasta_name, mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant, mcr_1_upstream))
+                output_file.write('%s\t%s\t%s\t%s\t%s\t%s' % (fasta_file, fasta_name, mcr_1_contig, mcr_1_start, mcr_1_strand, mcr_1_variant))
+                # Write sequence too
+                with open(output_fasta, 'a') as output_fasta:
+                    output_fasta.write('>%s %s %s\n%s\n' % (fasta_name, mcr_1_contig, mcr_1_variant, region_seq))
                 # Get plasmid replicons too
                 plasmids = sf.plasmid_replicons(fasta_file, mcr_1_contig)
                 # Write to file
                 output_file.write('\t%s\t%s' % (plasmids[0], plasmids[1]))
                 # Get ISApl1 status
-                ISApl1_status = classify_ISApl1_presence()
+                ISApl1_status = classify_ISApl1_presence(region_seq, mcr_1_relative_start)
                 # write to file
-                output_file.write('\t%d\t%s\t%d\t%s\n' % (ISApl1_status['upstream'][0], ISApl1_status['upstream'][1], \
-                        ISApl1_status['downstream'][0], ISApl1_status['downstream'][1]))
-
+                output_file.write('\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (ISApl1_status['upstream'][0][0], ISApl1_status['upstream'][0][1],ISApl1_status['upstream'][1][0], ISApl1_status['upstream'][1][1],
+                        ISApl1_status['downstream'][0][0], ISApl1_status['downstream'][0][1], ISApl1_status['downstream'][1][0], ISApl1_status['downstream'][1][1]))
             else:
-                output_file.write('%s\t%s\t%s\n' % (fasta_file, fasta_name, '\t'.join(['NA' for i in range(0,11)]))) # 11 empty fields
+                output_file.write('%s\t%s\t%s\n' % (fasta_file, fasta_name, '\t'.join(['NA' for i in range(0,14)]))) # 14 empty fields
 
 if __name__ == "__main__":
     main()
