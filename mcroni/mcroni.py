@@ -89,7 +89,7 @@ def cut_region(fasta_file, upstream_bases=1255, downstream_bases=1867):
             mcr_1_strand = '+' # On positive strand
         else:
             mcr_1_strand = '-' # On negative strand
-        logging.debug('\nmcr-1 start position is: base', mcr_1_start, 'on the', mcr_1_strand, 'strand', 'of contig', mcr_1_contig)
+        logging.debug('\nmcr-1 start position is: base '+str(mcr_1_start)+' on the '+str(mcr_1_strand)+' strand of contig '+str(mcr_1_contig))
     else:
         logging.debug('\ERROR: sequence does not contain a full-length mcr-1!')
         return
@@ -113,7 +113,7 @@ def cut_region(fasta_file, upstream_bases=1255, downstream_bases=1867):
             mcr_1_upstream = contig_seq[upstream_cut_position:mcr_1_start-1]
         # DOWNSTREAM
         downstream_cut_position = mcr_1_end + downstream_bases
-        logging.debug('\nCutting out the region from', upstream_cut_position, '-', downstream_cut_position, 'on the positive strand.')
+        logging.debug('\nCutting out the region from '+str(upstream_cut_position)+'-'+str(downstream_cut_position)+' on the positive strand.')
         if downstream_cut_position > len(contig_seq):
             logging.debug('\nWARNING: the mcr-1 contig is not long enough to extract the expected downstream region.')
             logging.debug('         --> mcroni will pad the sequence with gaps (-).')
@@ -134,7 +134,7 @@ def cut_region(fasta_file, upstream_bases=1255, downstream_bases=1867):
             mcr_1_upstream = sf.reverse_complement(contig_seq[mcr_1_start:upstream_cut_position])
         # DOWNSTREAM
         downstream_cut_position = mcr_1_end -  downstream_bases - 1
-        logging.debug('\nCutting out the region from', downstream_cut_position, '-', upstream_cut_position, 'on the negative strand.')
+        logging.debug('\nCutting out the region from '+str(downstream_cut_position)+'-'+ str(upstream_cut_position)+' on the negative strand.')
         if downstream_cut_position < 0:
             logging.debug('\nWARNING: the mcr-1 contig is not long enough to extract the expected downstream region.')
             logging.debug('         --> mcroni will pad the sequence with gaps (-).')
@@ -232,14 +232,12 @@ def classify_ISApl1_presence(region_seq, mcr_1_relative_start):
         logging.debug('\nThe summary of ISApl1 presence is:')
         ISApl1_relative_starts = [x-mcr_1_relative_start for x in starts]
         ISApl1_relative_ends = [x-mcr_1_relative_start for x in ends]
-        logging.debug('Starts:', ISApl1_relative_starts)
-        logging.debug('Ends:', ISApl1_relative_ends)
-        logging.debug('Lengths:', ISApl1_lengths)
         presences = list(zip(ISApl1_relative_starts, ISApl1_relative_ends))
         logging.debug(presences)
         internal_numbers = list(zip(internal_starts, internal_ends))
         sorted_isapl1_presences = sorted(presences)
         sorted_isapl1_internal = [internal_numbers[presences.index(x)] for x in sorted(presences)]
+        logging.debug('\nThe returned dict is:')
         logging.debug(ISApl1_dict)
         ISApl1_summary_list = list(zip(sorted_isapl1_presences, sorted_isapl1_internal))
         if [[x[0]<0 for x in y] for y in ISApl1_summary_list].count([True, False])==1:
@@ -290,6 +288,7 @@ def main():
                 with open(output_fasta, 'a') as output_fasta_file:
                     output_fasta_file.write('>%s %s %s\n%s\n' % (fasta_name, mcr_1_contig, mcr_1_variant, region_seq))
                 # Get plasmid replicons too
+                logging.debug('Finding plasmid replicons using abricate...')
                 plasmids = sf.plasmid_replicons(fasta_file, mcr_1_contig)
                 # Write to file
                 output_file.write('\t%s\t%s' % (plasmids[0], plasmids[1]))
