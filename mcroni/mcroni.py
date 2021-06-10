@@ -140,7 +140,8 @@ def cut_region(fasta_file, upstream_bases=1255, downstream_bases=1867):
         else:
             mcr_1_downstream = sf.reverse_complement(contig_seq[downstream_cut_position:mcr_1_end-1])
     region_seq = mcr_1_upstream+mcr_1_seq+mcr_1_downstream
-    return([mcr_1_contig, mcr_1_variant, mcr_1_start, mcr_1_strand, region_seq])
+    mcr_1_relative_start = len(mcr_1_upstream)
+    return([mcr_1_contig, mcr_1_variant, mcr_1_start, mcr_1_strand, mcr_1_relative_start, region_seq]) # mcr_1_start is in bases on contig, mcr_1_relative_start is in python for region_seq
 
 def classify_components(region_seq):
     '''Classify the presence of the various components of the mcr-1 composite transposon.
@@ -151,28 +152,20 @@ def classify_components(region_seq):
         '''
     return
 
-def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
-    '''Analyses the upstream and downstream presence of ISApl1.
+def classify_ISApl1_presence(region_seq, mcr_1_relative_start):
+    '''Analyses the upstream and downstream presence of ISApl1 in the extract region.
     Args:
-        contig (SeqIO record)
-            Record for contig containing mcr-1
-        mcr_1_start (int)
-            Start position of mcr-1 gene
-        mcr_1_strand
-            Strand of mcr-1
+        region_seq (str)
+            Extracted region containing mcr-1.
+        mcr_1_relative_start (int)
+            Relative start position of mcr-1 gene
     Returns:
         ISApl1_dict (dict)
             Dict with keys 'upstream', 'downstream' storing the length, strand of ISApl1
     '''
-    # Converting input contig
-    if mcr_1_strand == '+':
-        contig_str = str(contig.seq)
-    if mcr_1_strand == '-': # We construct the sequence so that mcr-1 is on +ve strand
-        contig_str = sf.reverse_complement(str(contig.seq))
-        mcr_1_start = len(contig_str)-mcr_1_start
     # Write to tmp file
     with open('tmp.fa', 'w') as f:
-        f.write('>tmp\n%s' % contig_str)
+        f.write('>tmp\n%s' % re.sub('-', '', region_seq)) # sub out the gaps for now
     # Parameters used in function
     upstream_ISApl1_window = 1264 # Based on 1254 in KX528699
     downstream_ISApl1_window = 3503 # Based on 3493 in KX528699
@@ -183,8 +176,8 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
     # Gets filled if there are hits
     ISApl1_dict = {'upstream' : [0, 'NA'], 'downstream' : [0, 'NA']}
     # Start positions of ISApl1 will need to be within these limits to count
-    upstream_limit = mcr_1_start-upstream_ISApl1_window
-    downstream_limit = mcr_1_start+downstream_ISApl1_window
+    upstream_limit = mcr_1_relative_start-upstream_ISApl1_window
+    downstream_limit = mcr_1_relative_start+downstream_ISApl1_window
     print('Searching for ISApl1...')
     # Search with blast for ISApl1
     print('\nMaking blast database...')
@@ -220,7 +213,7 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         print(orientations)
         ISApl1_lengths = [abs(ends[i] - starts[i])+1 for i in range(0, len(ends))] # +1 because e.g. start at 1 finish at 3 means length=3
         print(ISApl1_lengths)
-        ISApl1_relative_positions = [positive_map.get(loc, loc) for loc in [x<mcr_1_start for x in ends]]
+        ISApl1_relative_positions = [positive_map.get(loc, loc) for loc in [x<mcr_1_relative_start for x in ends]]
         ISApl1_limits = [starts[i]>upstream_limit and starts[i]<downstream_limit for i in range(0, len(starts))]
         # Loop through all instances and check if condition is met
         upstream_l = [ISApl1_relative_positions[i]=='upstream' and ISApl1_limits[i] for i in range(0, len(starts))]
@@ -233,8 +226,8 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
             ISApl1_dict['downstream'] = [ISApl1_lengths[downstream_ind], orientations[downstream_ind]]
         # return the dict
         print('\nThe summary of ISApl1 presence is:')
-        ISApl1_relative_starts = [x-mcr_1_start for x in starts]
-        ISApl1_relative_ends = [x-mcr_1_start for x in ends]
+        ISApl1_relative_starts = [x-mcr_1_relative_start for x in starts]
+        ISApl1_relative_ends = [x-mcr_1_relative_start for x in ends]
         print('Starts:', ISApl1_relative_starts)
         print('Ends:', ISApl1_relative_ends)
         print('Lengths:', ISApl1_lengths)
@@ -244,6 +237,7 @@ def classify_ISApl1_presence(contig, mcr_1_start, mcr_1_strand):
         sorted_isapl1_internal = [internal_numbers[presences.index(x)] for x in sorted(presences)]
         print(ISApl1_dict)
         return([sorted_isapl1_presences, sorted_isapl1_internal])
+        # Should be a 
 
 
 # Header for output file
@@ -284,7 +278,7 @@ def main():
                 # Write to file
                 output_file.write('\t%s\t%s' % (plasmids[0], plasmids[1]))
                 # Get ISApl1 status
-                ISApl1_status = classify_ISApl1_presence(sf.read_fasta(fasta_file)[mcr_1_contig], mcr_1_start, mcr_1_strand)
+                ISApl1_status = classify_ISApl1_presence()
                 # write to file
                 output_file.write('\t%d\t%s\t%d\t%s\n' % (ISApl1_status['upstream'][0], ISApl1_status['upstream'][1], \
                         ISApl1_status['downstream'][0], ISApl1_status['downstream'][1]))
