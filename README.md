@@ -15,7 +15,7 @@ This will return two output files:
 ```
 output_prefix_table.tsv   : summary information
 output_prefix_sequence.fa : extracted sequences
-
+```
 
 You can also pass in a list of fasta files instead with `--filelist`:
 
