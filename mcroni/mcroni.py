@@ -293,7 +293,7 @@ def main():
         if args.append:
             logging.debug('\nAppending to existing file.')
         else:
-            logging.debug('\nERROR: refusing to overwrite existing output table. If used --force, will append')
+            logging.debug('\nERROR: refusing to overwrite existing output fasta.')
             return
 
     if os.path.exists(output_table_summary):
