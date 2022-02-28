@@ -15,9 +15,9 @@ import math
 import logging
 import glob
 
-import mcroni.seqFunctions as sf # for conda
+#import mcroni.seqFunctions as sf # for conda
 # for local usage
-#import seqFunctions as sf
+import seqFunctions as sf
 
 
 
@@ -276,7 +276,7 @@ def main():
     type_of_file_writing = 'w'
     if args.append:
         type_of_file_writing = 'a'
-
+    print(args.force)
     if args.filelist is not None:
         with open(args.filelist, 'r') as f:
             for line in f.readlines():
@@ -290,7 +290,7 @@ def main():
         logging.debug('\nWARNING: output fasta already exists')
         if args.force:
             os.remove(output_fasta)
-        if args.append:
+        elif args.append:
             logging.debug('\nAppending to existing file.')
         else:
             logging.debug('\nERROR: refusing to overwrite existing output fasta.')
@@ -300,13 +300,14 @@ def main():
         logging.debug('\nWARNING: output table already exists.')
         if args.force:
             os.remove(output_table_summary)
-        if args.append:
+        elif args.append:
             logging.debug('\nAppending to existing file.')
         else:
             logging.debug('\nERROR: refusing to overwrite existing output table.')
             return
     with open(output_table_summary, type_of_file_writing) as output_file:
-        output_file.write(output_header+'\n') # Write the header of table
+        if type_of_file_writing=='w': 
+            output_file.write(output_header+'\n') # Write the header of table if not appending
         for fasta_file in fastas:
             if not os.path.exists(fasta_file):
                 logging.debug('\nERROR: input fasta does not exist:', fasta_file)
