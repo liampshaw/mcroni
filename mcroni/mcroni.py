@@ -15,9 +15,9 @@ import math
 import logging
 import glob
 
-#import mcroni.seqFunctions as sf # for conda
+import mcroni.seqFunctions as sf # for conda
 # for local usage
-import seqFunctions as sf
+#import seqFunctions as sf
 
 
 
