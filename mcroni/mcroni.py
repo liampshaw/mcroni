@@ -13,6 +13,7 @@ import pandas as pd
 import numpy as np
 import math
 import logging
+import glob
 
 import mcroni.seqFunctions as sf # for conda
 # for local usage
@@ -205,9 +206,9 @@ def classify_ISApl1_presence(region_seq, mcr_1_relative_start):
     blast_out, _ = blast_process.communicate() # Read the output from stdout
     blast_output = re.split('\n|\t',blast_out.decode()) # Decode
     logging.debug('\nRemoving temporary blast databases...')
-    os.remove('tmp.fa'+'.nin')
-    os.remove('tmp.fa'+'.nhr')
-    os.remove('tmp.fa'+'.nsq')
+    for tmpfile in glob.glob('tmp.fa'+'.n*'):
+        os.remove(tmpfile)
+    
     logging.debug(blast_output)
     # Process blast output
     if blast_output == ['']:
