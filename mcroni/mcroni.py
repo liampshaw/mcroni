@@ -17,7 +17,7 @@ import glob
 
 import mcroni.seqFunctions as sf # for conda
 # for local usage
-#import seqFunctions as sf
+# import seqFunctions as sf
 
 
 
@@ -276,7 +276,7 @@ def main():
     type_of_file_writing = 'w'
     if args.append:
         type_of_file_writing = 'a'
-    print(args.force)
+    
     if args.filelist is not None:
         with open(args.filelist, 'r') as f:
             for line in f.readlines():
