@@ -336,7 +336,7 @@ def main():
                 output_file.write('\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (ISApl1_status['upstream'][0][0], ISApl1_status['upstream'][0][1],ISApl1_status['upstream'][1][0], ISApl1_status['upstream'][1][1],
                         ISApl1_status['downstream'][0][0], ISApl1_status['downstream'][0][1], ISApl1_status['downstream'][1][0], ISApl1_status['downstream'][1][1]))
             else:
-                output_file.write('%s\t%s\t%s\n' % (fasta_file, fasta_name, '\t'.join(['NA' for i in range(0,14)]))) # 14 empty fields
+                output_file.write('%s\t%s\t%s\n' % (fasta_file, fasta_name, '\t'.join(['NA' for i in range(0,15)]))) # 15 empty fields
     if os.path.exists('tmp.fa'): # Clean up tmp file
         os.remove('tmp.fa')
 
